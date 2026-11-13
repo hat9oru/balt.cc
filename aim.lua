@@ -172,28 +172,40 @@ local function setup()
 		return WS:Raycast(cam.CFrame.Position, pos - cam.CFrame.Position, rp) == nil
 	end
 	
-	local target, goal, tPos, tDist, locked
+	local target, goal, tPos, tDist, locked, lockAt
 
 	local function aimPos(head)
 		return head.Position - Vector3.new(0, math.min(head.Size.Y * 0.35, 0.5), 0)
 	end
 
+	local function score(ang, len, fov)
+		return (ang / fov) * 0.5 + (len / 1200) * 0.5
+	end
+
 	local function scan()
 		local o = cam.CFrame.Position
 		local look = cam.CFrame.LookVector
-		local head, root, ch, pos, len
+		local fov = math.max(cfg.aim.fov, 20)
+		local head, root, ch, pos, len, ang
+		local curPos, curLen, curScore, curAng
 		if locked then
 			head, root, ch = body(locked, cfg.aim.team)
 			if head then
 				pos = aimPos(head)
-				if clear(pos, ch) then
-					return locked, pos, (root.Position - o).Magnitude
+				local d = pos - o
+				curLen = d.Magnitude
+				ang = math.deg(math.acos(math.clamp(look:Dot(d / curLen), -1, 1)))
+				if ang <= fov and (not cfg.aim.walls or clear(pos, ch)) then
+					curPos = pos
+					curAng = ang
+					curScore = score(ang, curLen, fov)
 				end
 			end
-			locked = nil
+			if not curPos then
+				locked = nil
+			end
 		end
-		local best, bp, bd
-		local fov = math.max(cfg.aim.fov, 20)
+		local best, bp, bd, bs
 		for _, p in ipairs(Players:GetPlayers()) do
 			head, root, ch = body(p, cfg.aim.team)
 			if head then
@@ -201,19 +213,32 @@ local function setup()
 				local d = pos - o
 				len = d.Magnitude
 				if len > 0 and len <= 1200 then
-					local ang = math.deg(math.acos(math.clamp(look:Dot(d / len), -1, 1)))
-					if ang <= fov and (not bd or len < bd) then
-						if clear(pos, ch) then
-							bd, best, bp = len, p, pos
+					ang = math.deg(math.acos(math.clamp(look:Dot(d / len), -1, 1)))
+					if ang <= fov then
+						local sc = score(ang, len, fov)
+						if not bs or sc < bs then
+							if clear(pos, ch) then
+								bs, best, bp, bd = sc, p, pos, len
+							end
 						end
 					end
 				end
 			end
 		end
+		if curPos then
+			if best and best ~= locked and bs < curScore * (curAng < 4 and 0.65 or 0.85) and os.clock() - (lockAt or 0) > 0.2 then
+				locked = best
+				lockAt = os.clock()
+				return best, bp, bd
+			end
+			return locked, curPos, curLen
+		end
 		if best then
 			locked = best
+			lockAt = os.clock()
+			return best, bp, bd
 		end
-		return best, bp, bd
+		return nil
 	end
 	
 	local function tick(dt)
@@ -252,12 +277,14 @@ local function setup()
 			return
 		end
 		ring.Visible = true
+		local cf = cam.CFrame
 		local vp = cam.ViewportSize
-		local f = math.min(cfg.aim.fov, 179)
-		local r = math.tan(math.rad(f / 2)) / math.tan(math.rad(cam.FieldOfView / 2)) * vp.Y / 2
-		r = math.clamp(r, 6, math.min(vp.X, vp.Y) * 0.7)
+		local mid = cam:WorldToScreenPoint(cf.Position + cf.LookVector * 200)
+		ring.Position = UDim2.fromOffset(mid.X, mid.Y)
+		local f = math.clamp(cfg.aim.fov, 20, 179)
+		local r = (vp.Y / 2) * math.tan(math.rad(f / 2)) / math.tan(math.rad(cam.FieldOfView / 2))
+		r = math.clamp(r, 4, math.min(vp.X, vp.Y) * 2)
 		ring.Size = UDim2.fromOffset(r * 2, r * 2)
-		ring.Position = UDim2.fromOffset(vp.X / 2, inset.Y + vp.Y / 2)
 	end
 	
 	local baseUI = mk("ScreenGui", { Name = "aim_ovl", IgnoreGuiInset = true, ResetOnSpawn = false, DisplayOrder = 20 })
@@ -294,35 +321,68 @@ local function setup()
 	end
 	
 	local frame = mk("Frame", {
-		Name = "frame", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 40),
-		Size = UDim2.fromScale(0.94, 0.86), BackgroundColor3 = Color3.new(0, 0, 0),
+		Name = "frame", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 16),
+		Size = UDim2.fromScale(0.9, 0.78), BackgroundColor3 = Color3.new(0, 0, 0),
 		BackgroundTransparency = 0.12, Visible = false, ClipsDescendants = true, ZIndex = 1, Parent = ui,
 	}, ui)
 	corner(frame, UDim.new(0, 16))
 	stroke(frame, 1, 0.8)
-	
-	local left = mk("Frame", { Size = UDim2.new(0.46, -12, 1, -24), Position = UDim2.fromOffset(12, 12), BackgroundTransparency = 1 }, frame)
+
 	mk("TextLabel", {
-		Size = UDim2.new(1, 0, 0, 34), BackgroundTransparency = 1, Font = Enum.Font.GothamBlack,
-		TextSize = 26, TextColor3 = WHITE, TextXAlignment = Enum.TextXAlignment.Left, Text = "A I M", Parent = left,
-	}, left)
+		Position = UDim2.fromOffset(0, 8), Size = UDim2.new(1, 0, 0, 20), BackgroundTransparency = 1,
+		Font = Enum.Font.GothamBold, TextSize = 15, TextColor3 = WHITE, Text = "balt.cc", Parent = frame,
+	}, frame)
+
+	local close = mk("TextButton", {
+		AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 9), Size = UDim2.fromOffset(18, 18),
+		BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.85, Text = "x", AutoButtonColor = false,
+		Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = WHITE, Parent = frame,
+	}, frame)
+	corner(close, UDim.new(1, 0))
+
+	local left = mk("Frame", {
+		Position = UDim2.fromOffset(10, 36), Size = UDim2.new(0.25, -14, 1, -46),
+		BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.35, Parent = frame,
+	}, frame)
+	corner(left, UDim.new(0, 12))
+	stroke(left, 1, 0.85)
+
+	local right = mk("Frame", {
+		AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 36), Size = UDim2.new(0.75, -14, 1, -46),
+		BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.35, Parent = frame,
+	}, frame)
+	corner(right, UDim.new(0, 12))
+	stroke(right, 1, 0.85)
+
 	mk("TextLabel", {
-		Position = UDim2.fromOffset(0, 30), Size = UDim2.new(1, 0, 0, 16), BackgroundTransparency = 1,
-		Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = Color3.fromRGB(140, 140, 145),
-		TextXAlignment = Enum.TextXAlignment.Left, Text = "strict / instant lock", Parent = left,
+		Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -20, 0, 14), BackgroundTransparency = 1,
+		Font = Enum.Font.GothamBold, TextSize = 10, TextColor3 = Color3.fromRGB(120, 120, 128),
+		TextXAlignment = Enum.TextXAlignment.Left, Text = "SECTIONS", Parent = left,
 	}, left)
-	
-	local info = mk("Frame", { Position = UDim2.fromOffset(0, 66), Size = UDim2.new(1, 0, 0, 96), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.55 }, left)
-	corner(info, UDim.new(0, 10))
-	stroke(info, 1, 0.85)
-	local pads = mk("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 }, info)
-	pads.Parent = info
+
+	local tabRow = mk("Frame", {
+		Position = UDim2.fromOffset(8, 24), Size = UDim2.new(1, -16, 0, 0), BackgroundTransparency = 1,
+		AutomaticSize = Enum.AutomaticSize.Y, Parent = left,
+	}, left)
+	mk("UIListLayout", { Padding = UDim.new(0, 5), SortOrder = Enum.SortOrder.LayoutOrder }, tabRow)
+	for _, t in ipairs({ "Combat", "Movement", "Visual" }) do
+		local b = mk("TextButton", {
+			Size = UDim2.new(1, 0, 0, 26), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.88,
+			Text = t, AutoButtonColor = false, Font = Enum.Font.Gotham, TextSize = 11,
+			TextColor3 = Color3.fromRGB(150, 150, 155), Parent = tabRow,
+		}, tabRow)
+		corner(b, UDim.new(0, 6))
+		b.Name = t
+	end
+
+	local info = mk("Frame", { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 8, 1, -8), Size = UDim2.new(1, -16, 0, 90), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.5, Parent = left }, left)
+	corner(info, UDim.new(0, 8))
 	local function line(i, text)
 		local l = mk("TextLabel", {
-			Position = UDim2.fromOffset(10, 8 + i * 18), Size = UDim2.new(1, -20, 0, 14), BackgroundTransparency = 1,
-			Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = Color3.fromRGB(190, 190, 195),
-			TextXAlignment = Enum.TextXAlignment.Left, Text = text,
-		}, pads)
+			Position = UDim2.fromOffset(7, 6 + i * 16), Size = UDim2.new(1, -14, 0, 13), BackgroundTransparency = 1,
+			Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = Color3.fromRGB(180, 180, 186),
+			TextXAlignment = Enum.TextXAlignment.Left, Text = text, Parent = info,
+		}, info)
 		return l
 	end
 	local lDev = line(0, "device:  " .. (mobile and "mobile" or "pc"))
@@ -330,40 +390,15 @@ local function setup()
 	local lTar = line(2, "target:  -")
 	local lDist = line(3, "dist:  -")
 	local lKey = line(4, "key:  " .. (mobile and "lock button" or "hold C"))
-	
-	local right = mk("Frame", {
-		AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 12), Size = UDim2.new(0.54, -12, 1, -24),
-		BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.35, Parent = frame,
-	}, frame)
-	corner(right, UDim.new(0, 12))
-	stroke(right, 1, 0.85)
-	
+
 	mk("TextLabel", {
-		Position = UDim2.fromOffset(12, 8), Size = UDim2.new(1, -50, 0, 18), BackgroundTransparency = 1,
-		Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = WHITE, TextXAlignment = Enum.TextXAlignment.Left,
-		Text = "MENU", Parent = right,
+		Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -20, 0, 14), BackgroundTransparency = 1,
+		Font = Enum.Font.GothamBold, TextSize = 10, TextColor3 = Color3.fromRGB(120, 120, 128),
+		TextXAlignment = Enum.TextXAlignment.Left, Text = "MODULES", Parent = right,
 	}, right)
-	local close = mk("TextButton", {
-		AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -8, 0, 8), Size = UDim2.fromOffset(20, 20),
-		BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.85, Text = "x", AutoButtonColor = false,
-		Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = WHITE, Parent = right,
-	}, right)
-	corner(close, UDim.new(1, 0))
-	
-	local tabRow = mk("Frame", { Position = UDim2.fromOffset(10, 30), Size = UDim2.new(1, -20, 0, 24), BackgroundTransparency = 1 }, right)
-	local tlay = mk("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }, tabRow)
-	tabRow.Parent = right
-	for _, t in ipairs({ "Combat", "Movement", "Visual" }) do
-		local b = mk("TextButton", {
-			Size = UDim2.new(1 / 3, -3, 1, 0), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.88,
-			Text = t, AutoButtonColor = false, Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = Color3.fromRGB(150, 150, 155),
-		}, tabRow)
-		corner(b, UDim.new(0, 6))
-		b.Name = t
-	end
-	
+
 	local content = mk("ScrollingFrame", {
-		Position = UDim2.fromOffset(10, 60), Size = UDim2.new(1, -20, 1, -70), BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(10, 24), Size = UDim2.new(1, -20, 1, -34), BackgroundTransparency = 1,
 		ScrollBarThickness = 2, ScrollBarImageColor3 = Color3.new(1, 1, 1), CanvasSize = UDim2.new(),
 		ScrollBarImageTransparency = 0.5, Parent = right,
 	}, right)
@@ -680,7 +715,7 @@ local function setup()
 		end)
 	end
 	
-	local espUI = mk("ScreenGui", { Name = "aim_esp", IgnoreGuiInset = false, ResetOnSpawn = false, DisplayOrder = 10 })
+	local espUI = mk("ScreenGui", { Name = "aim_esp", IgnoreGuiInset = true, ResetOnSpawn = false, DisplayOrder = 10 })
 	attach(espUI)
 	
 	local pool = {}
@@ -738,8 +773,8 @@ local function setup()
 						for _, sx in ipairs({ -1, 1 }) do
 							for _, sy in ipairs({ -1, 1 }) do
 								local wp = center + rv * (hw * sx) + uv * (hh * sy)
-								local sp, on = cam:WorldToViewportPoint(wp)
-								if on and sp.Z > 0 then
+								local sp = cam:WorldToScreenPoint(wp)
+								if sp.Z > 0 then
 									front = true
 									minX = math.min(minX or sp.X, sp.X)
 									maxX = math.max(maxX or sp.X, sp.X)
@@ -754,8 +789,8 @@ local function setup()
 							local hh2 = maxY - minY
 							if w > 1 and hh2 > 1 then
 								seen[p] = true
-								e.root.Position = UDim2.fromOffset(minX, minY)
-								e.root.Size = UDim2.fromOffset(w, hh2)
+								e.root.Position = UDim2.fromOffset(math.floor(minX + 0.5), math.floor(minY + 0.5))
+								e.root.Size = UDim2.fromOffset(math.floor(w + 0.5), math.floor(hh2 + 0.5))
 								e.root.Visible = true
 								e.nm.Visible = cfg.vis.name
 								e.nm.Text = p.Name
@@ -857,27 +892,34 @@ local function setup()
 				root.Anchored = false
 				if savedVel then root.AssemblyLinearVelocity = savedVel end
 			end
-			if cfg.move.infjump then
-				local held = UIS:IsKeyDown(Enum.KeyCode.Space) or next(jumpKeys) ~= nil
-				if held and not cfg.move.stuck then
-					local st = h:GetState()
-					if st ~= Enum.HumanoidStateType.Jumping and st ~= Enum.HumanoidStateType.Freefall then
-						h:ChangeState(Enum.HumanoidStateType.Jumping)
-					end
-					local v = root.AssemblyLinearVelocity
-					if v.Y < 50 then
-						root.AssemblyLinearVelocity = Vector3.new(v.X, 50, v.Z)
-					end
-				end
-			end
 		end
 	end
 	
+	local function airJump()
+		if not cfg.move.infjump or cfg.move.stuck then return end
+		local h, ch = hum()
+		if not h then return end
+		local root = ch:FindFirstChild("HumanoidRootPart")
+		if not root then return end
+		local st = h:GetState()
+		if st ~= Enum.HumanoidStateType.Freefall and st ~= Enum.HumanoidStateType.Jumping then return end
+		local v = root.AssemblyLinearVelocity
+		local vy = h.UseJumpPower and h.JumpPower or math.sqrt(2 * WS.Gravity * h.JumpHeight)
+		root.AssemblyLinearVelocity = Vector3.new(v.X, vy, v.Z)
+		h:ChangeState(Enum.HumanoidStateType.Jumping)
+	end
+
 	UIS.InputBegan:Connect(function(i)
-		if i.KeyCode == Enum.KeyCode.Space then jumpKeys[i] = true end
+		if i.KeyCode == Enum.KeyCode.Space then
+			jumpKeys[i] = true
+			airJump()
+		end
 		if i.UserInputType == Enum.UserInputType.Touch and mobile then
 			local vp = cam.ViewportSize
-			if i.Position.X > vp.X * 0.6 and i.Position.Y > vp.Y * 0.5 then jumpKeys[i] = true end
+			if i.Position.X > vp.X * 0.6 and i.Position.Y > vp.Y * 0.5 then
+				jumpKeys[i] = true
+				airJump()
+			end
 		end
 		if not mobile then
 			if i.KeyCode == Enum.KeyCode.C then
@@ -919,10 +961,11 @@ local function setup()
 		end)
 	end)
 	
-	RunService.RenderStepped:Connect(function()
-		esp()
-		trig()
+	pcall(function()
+		RunService:BindToRenderStep("aimEsp", Enum.RenderPriority.Camera.Value + 11, esp)
 	end)
+
+	RunService.RenderStepped:Connect(trig)
 	
 	RunService.Heartbeat:Connect(moveTick)
 	
