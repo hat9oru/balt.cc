@@ -39,6 +39,12 @@ end
 local core = best()
 log("start | mobile:", mobile, "| parent:", core and core:GetFullName() or "none")
 
+-- проверка функций triggerbot
+local hasMousePress = type(mouse1press) == "function"
+local hasMouseRelease = type(mouse1release) == "function"
+local hasMouseClick = type(mouse1click) == "function"
+log("triggerbot | mouse1press:", hasMousePress, "| mouse1release:", hasMouseRelease, "| mouse1click:", hasMouseClick)
+
 local guis = {}
 local function attach(g)
 	guis[#guis + 1] = g
@@ -88,14 +94,14 @@ diagBox.Parent = diagFrame
 local function setup()
 	local WHITE = Color3.new(1, 1, 1)
 	local DIM = Color3.fromRGB(48, 48, 52)
-	
+
 	local cfg = {
 		aim = { fov = 120, draw = true, speed = 100, walls = true, team = true, on = false, holdBtn = false },
 		trig = { press = false, react = 60, btn = false },
 		move = { speed = 3, infjump = false, jump = 3, stuck = false, boost = true, btnSpd = false, btnJump = false, btnStuck = false },
 		vis = { esp = false, name = true, hp = true, team = true, btn = false },
 	}
-	
+
 	local mods, btnStack, syncBtns
 
 	local rp = RaycastParams.new()
@@ -108,27 +114,27 @@ local function setup()
 		end)
 	end
 	rp.FilterDescendantsInstances = {}
-	
+
 	local tpr = RaycastParams.new()
 	pcall(function()
 		tpr.FilterType = rp.FilterType
 	end)
 	tpr.FilterDescendantsInstances = {}
-	
+
 	local function mk(c, p, parent)
 		local o = Instance.new(c)
 		for k, v in pairs(p) do o[k] = v end
 		if parent then o.Parent = parent end
 		return o
 	end
-	
+
 	local function corner(o, r)
 		local c = Instance.new("UICorner")
 		c.CornerRadius = r
 		c.Parent = o
 		return c
 	end
-	
+
 	local function stroke(o, t, a)
 		local s = Instance.new("UIStroke")
 		s.Color = WHITE
@@ -137,14 +143,14 @@ local function setup()
 		s.Parent = o
 		return s
 	end
-	
+
 	local function hum()
 		local ch = lp.Character
 		if not ch then return end
 		local h = ch:FindFirstChildOfClass("Humanoid")
 		if h and h.Health > 0 then return h, ch end
 	end
-	
+
 	local function same(p)
 		if p == lp then return true end
 		local t = lp.Team
@@ -152,7 +158,7 @@ local function setup()
 		local c = lp.TeamColor
 		return p.TeamColor == c and c ~= Enum.TeamColor.White
 	end
-	
+
 	local function body(p, tc)
 		if p == lp then return end
 		local ch = p.Character
@@ -165,13 +171,13 @@ local function setup()
 		local head = ch:FindFirstChild("Head") or root
 		return head, root, ch, h
 	end
-	
+
 	local function clear(pos, ch)
 		if not cfg.aim.walls then return true end
 		rp.FilterDescendantsInstances = { lp.Character, ch }
 		return WS:Raycast(cam.CFrame.Position, pos - cam.CFrame.Position, rp) == nil
 	end
-	
+
 	local target, goal, tPos, tDist, locked, lockAt
 
 	local function aimPos(head)
@@ -182,38 +188,37 @@ local function setup()
 		return (ang / fov) * 0.5 + (len / 1200) * 0.5
 	end
 
+	-- Жёсткий лок: пока цель валидна — не меняем. Сброс только при смерти/выходе из fov/за стеной.
 	local function scan()
 		local o = cam.CFrame.Position
 		local look = cam.CFrame.LookVector
 		local fov = math.max(cfg.aim.fov, 20)
-		local head, root, ch, pos, len, ang
-		local curPos, curLen, curScore, curAng
+
+		-- если есть залоченная цель — проверяем только её
 		if locked then
-			head, root, ch = body(locked, cfg.aim.team)
+			local head, root, ch = body(locked, cfg.aim.team)
 			if head then
-				pos = aimPos(head)
+				local pos = aimPos(head)
 				local d = pos - o
-				curLen = d.Magnitude
-				ang = math.deg(math.acos(math.clamp(look:Dot(d / curLen), -1, 1)))
-				if ang <= fov and (not cfg.aim.walls or clear(pos, ch)) then
-					curPos = pos
-					curAng = ang
-					curScore = score(ang, curLen, fov)
+				local len = d.Magnitude
+				local ang = math.deg(math.acos(math.clamp(look:Dot(d / len), -1, 1)))
+				if ang <= fov and clear(pos, ch) then
+					return locked, pos, len
 				end
 			end
-			if not curPos then
-				locked = nil
-			end
+			locked = nil
 		end
+
+		-- иначе ищем новую цель
 		local best, bp, bd, bs
 		for _, p in ipairs(Players:GetPlayers()) do
-			head, root, ch = body(p, cfg.aim.team)
+			local head, root, ch = body(p, cfg.aim.team)
 			if head then
-				pos = aimPos(head)
+				local pos = aimPos(head)
 				local d = pos - o
-				len = d.Magnitude
+				local len = d.Magnitude
 				if len > 0 and len <= 1200 then
-					ang = math.deg(math.acos(math.clamp(look:Dot(d / len), -1, 1)))
+					local ang = math.deg(math.acos(math.clamp(look:Dot(d / len), -1, 1)))
 					if ang <= fov then
 						local sc = score(ang, len, fov)
 						if not bs or sc < bs then
@@ -225,14 +230,6 @@ local function setup()
 				end
 			end
 		end
-		if curPos then
-			if best and best ~= locked and bs < curScore * (curAng < 4 and 0.65 or 0.85) and os.clock() - (lockAt or 0) > 0.2 then
-				locked = best
-				lockAt = os.clock()
-				return best, bp, bd
-			end
-			return locked, curPos, curLen
-		end
 		if best then
 			locked = best
 			lockAt = os.clock()
@@ -240,7 +237,7 @@ local function setup()
 		end
 		return nil
 	end
-	
+
 	local function tick(dt)
 		if not cam then
 			cam = WS.CurrentCamera
@@ -268,35 +265,34 @@ local function setup()
 			cam.CFrame = cam.CFrame:Lerp(goal, math.clamp(1 - math.exp(-k * dt), 0.005, 1))
 		end
 	end
-	
+
 	local ring
-	
+
+	-- FOV-круг: статичный центр экрана, не зависит от позиции в мире
 	local function drawRing()
 		if not cfg.aim.draw or not cam then
 			ring.Visible = false
 			return
 		end
 		ring.Visible = true
-		local cf = cam.CFrame
+		ring.Position = UDim2.fromScale(0.5, 0.5)
 		local vp = cam.ViewportSize
-		local mid = cam:WorldToScreenPoint(cf.Position + cf.LookVector * 200)
-		ring.Position = UDim2.fromOffset(mid.X, mid.Y)
 		local f = math.clamp(cfg.aim.fov, 20, 179)
 		local r = (vp.Y / 2) * math.tan(math.rad(f / 2)) / math.tan(math.rad(cam.FieldOfView / 2))
 		r = math.clamp(r, 4, math.min(vp.X, vp.Y) * 2)
 		ring.Size = UDim2.fromOffset(r * 2, r * 2)
 	end
-	
+
 	local baseUI = mk("ScreenGui", { Name = "aim_ovl", IgnoreGuiInset = true, ResetOnSpawn = false, DisplayOrder = 20 })
 	attach(baseUI)
-	
+
 	ring = mk("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), BackgroundTransparency = 1, Size = UDim2.fromOffset(100, 100) }, baseUI)
 	corner(ring, UDim.new(1, 0))
 	stroke(ring, 1.5, 0.35)
-	
+
 	local ui = mk("ScreenGui", { Name = "aim_ui", IgnoreGuiInset = true, ResetOnSpawn = false, DisplayOrder = 50 })
 	attach(ui)
-	
+
 	local menuBtn = mk("TextButton", {
 		Name = "menu", Size = UDim2.fromOffset(44, 44), AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 54), BackgroundColor3 = Color3.new(0, 0, 0),
@@ -305,7 +301,7 @@ local function setup()
 	corner(menuBtn, UDim.new(0, 12))
 	stroke(menuBtn, 1, 0.7)
 	menuBtn.ZIndex = 20
-	
+
 	local micon = mk("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(20, 20), BackgroundTransparency = 1 }, menuBtn)
 	local mring = mk("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(15, 15), BackgroundTransparency = 1 }, micon)
 	corner(mring, UDim.new(1, 0))
@@ -319,7 +315,7 @@ local function setup()
 			BackgroundColor3 = WHITE, BorderSizePixel = 0,
 		}, micon)
 	end
-	
+
 	local frame = mk("Frame", {
 		Name = "frame", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 16),
 		Size = UDim2.fromScale(0.9, 0.78), BackgroundColor3 = Color3.new(0, 0, 0),
@@ -375,22 +371,6 @@ local function setup()
 		b.Name = t
 	end
 
-	local info = mk("Frame", { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 8, 1, -8), Size = UDim2.new(1, -16, 0, 90), BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 0.5, Parent = left }, left)
-	corner(info, UDim.new(0, 8))
-	local function line(i, text)
-		local l = mk("TextLabel", {
-			Position = UDim2.fromOffset(7, 6 + i * 16), Size = UDim2.new(1, -14, 0, 13), BackgroundTransparency = 1,
-			Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = Color3.fromRGB(180, 180, 186),
-			TextXAlignment = Enum.TextXAlignment.Left, Text = text, Parent = info,
-		}, info)
-		return l
-	end
-	local lDev = line(0, "device:  " .. (mobile and "mobile" or "pc"))
-	local lSt = line(1, "state:  idle")
-	local lTar = line(2, "target:  -")
-	local lDist = line(3, "dist:  -")
-	local lKey = line(4, "key:  " .. (mobile and "lock button" or "hold C"))
-
 	mk("TextLabel", {
 		Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -20, 0, 14), BackgroundTransparency = 1,
 		Font = Enum.Font.GothamBold, TextSize = 10, TextColor3 = Color3.fromRGB(120, 120, 128),
@@ -404,12 +384,12 @@ local function setup()
 	}, right)
 	mk("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, content)
 	mk("UIPadding", { PaddingBottom = UDim.new(0, 10) }, content)
-	
+
 	local function rowH(h)
 		local r = mk("Frame", { Size = UDim2.new(1, 0, 0, h), BackgroundTransparency = 1 })
 		return r
 	end
-	
+
 	local function head(text)
 		local f = mk("Frame", { Size = UDim2.new(1, 0, 0, 22), BackgroundTransparency = 1 })
 		local l = mk("TextLabel", {
@@ -419,7 +399,7 @@ local function setup()
 		}, f)
 		return f
 	end
-	
+
 	local function toggle(parent, text, state, cb)
 		local r = rowH(32)
 		r.Parent = parent
@@ -445,7 +425,7 @@ local function setup()
 			cb(state)
 		end)
 	end
-	
+
 	local function slider(parent, text, min, max, def, fmt, cb)
 		local r = rowH(38)
 		r.Parent = parent
@@ -493,7 +473,7 @@ local function setup()
 			dg = nil
 		end)
 	end
-	
+
 	local function text(parent, t, color)
 		local f = mk("Frame", { Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = 1, Parent = parent }, parent)
 		local l = mk("TextLabel", {
@@ -503,28 +483,28 @@ local function setup()
 		}, f)
 		return f
 	end
-	
+
 	local pages = {}
 	local function clearContent()
 		for _, c in ipairs(content:GetChildren()) do
 			if c:IsA("Frame") then c:Destroy() end
 		end
 	end
-	
+
 	pages.Combat = function()
-		slider(content, "Fov", 20, 360, cfg.aim.fov, tostring, function(v) cfg.aim.fov = v end)
+		slider(content, "Fov", 20, 179, cfg.aim.fov, tostring, function(v) cfg.aim.fov = v end)
 		toggle(content, "Draw Fov", cfg.aim.draw, function(v) cfg.aim.draw = v end)
 		slider(content, "Aim Speed", 1, 100, cfg.aim.speed, tostring, function(v) cfg.aim.speed = v end)
 		toggle(content, "Wall Check", cfg.aim.walls, function(v) cfg.aim.walls = v end)
 		toggle(content, "Team Check", cfg.aim.team, function(v) cfg.aim.team = v end)
 		toggle(content, "Lock AimButton", cfg.aim.holdBtn, function(v) cfg.aim.holdBtn = v end)
 		head("TriggerBot").Parent = content
-		toggle(content, "Press", cfg.trig.press, function(v) cfg.trig.press = v end)
+		toggle(content, "Press", cfg.trig.press, function(v) cfg.trig.press = v; if syncBtns then syncBtns() end end)
 		toggle(content, "Button", cfg.trig.btn, function(v) cfg.trig.btn = v; syncBtns() end)
 		slider(content, "Reaction", 0, 500, cfg.trig.react, function(v) return v .. " ms" end, function(v) cfg.trig.react = v end)
 		text(content, "1 = slow, 100 = instant. Press holds the mouse button while the crosshair is on a target.")
 	end
-	
+
 	pages.Movement = function()
 		slider(content, "Speed", 1, 5, cfg.move.speed, tostring, function(v) cfg.move.speed = v end)
 		toggle(content, "Button", cfg.move.btnSpd, function(v) cfg.move.btnSpd = v; syncBtns() end)
@@ -535,7 +515,7 @@ local function setup()
 		toggle(content, "Button", cfg.move.btnStuck, function(v) cfg.move.btnStuck = v; syncBtns() end)
 		text(content, "Speed 3 = default, 1 = x0.2, 5 = x10. Jump Speed 1 = x0.2, 5 = x5.")
 	end
-	
+
 	pages.Visual = function()
 		toggle(content, "Esp", cfg.vis.esp, function(v) cfg.vis.esp = v; syncBtns() end)
 		toggle(content, "Button", cfg.vis.btn, function(v) cfg.vis.btn = v; syncBtns() end)
@@ -543,7 +523,7 @@ local function setup()
 		toggle(content, "Hp", cfg.vis.hp, function(v) cfg.vis.hp = v end)
 		toggle(content, "Team Check", cfg.vis.team, function(v) cfg.vis.team = v end)
 	end
-	
+
 	local openPage
 	local function show(name)
 		clearContent()
@@ -558,7 +538,7 @@ local function setup()
 		pages[name]()
 		content.CanvasSize = UDim2.new()
 	end
-	
+
 	for _, b in ipairs(tabRow:GetChildren()) do
 		if b:IsA("TextButton") then
 			b.MouseButton1Click:Connect(function() show(b.Name) end)
@@ -570,18 +550,18 @@ local function setup()
 			content.CanvasSize = UDim2.fromOffset(0, y)
 		end)
 	end)
-	
+
 	local function setMenu(v)
 		frame.Visible = v
 		menuBtn.BackgroundTransparency = v and 0.6 or 0.2
 	end
-	
+
 	menuBtn.MouseButton1Click:Connect(function()
 		setMenu(not frame.Visible)
 		if frame.Visible then show("Combat") end
 	end)
 	close.MouseButton1Click:Connect(function() setMenu(false) end)
-	
+
 	local lock, lockShackle, lx, ly, tx, ty, lockMoved, lockIn
 
 	local function syncLock()
@@ -714,44 +694,41 @@ local function setup()
 			lock.Position = UDim2.fromOffset(lx, ly)
 		end)
 	end
-	
+
 	local espUI = mk("ScreenGui", { Name = "aim_esp", IgnoreGuiInset = true, ResetOnSpawn = false, DisplayOrder = 10 })
 	attach(espUI)
-	
+
 	local pool = {}
-	
+
 	local function entry(p)
 		local e = pool[p]
 		if e then return e end
-		local root = mk("Frame", { BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false }, espUI)
-		root.Parent = espUI
+		local root = mk("Frame", { BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false, Parent = espUI }, espUI)
 		corner(root, UDim.new(0, 2))
-		local fill = mk("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = WHITE, BackgroundTransparency = 0.92, BorderSizePixel = 0 }, root)
-		fill.Parent = root
+		local fill = mk("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = WHITE, BackgroundTransparency = 0.92, BorderSizePixel = 0, Parent = root }, root)
 		corner(fill, UDim.new(0, 2))
 		local st = stroke(root, 1.4, 0.05)
 		local nm = mk("TextLabel", {
 			AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.new(0.5, 0, 0, -3), Size = UDim2.new(1, 90, 0, 13),
 			BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 11, TextColor3 = WHITE,
-			TextStrokeTransparency = 0.4, Visible = false,
+			TextStrokeTransparency = 0.4, Visible = false, Parent = root,
 		}, root)
-		nm.Parent = root
-		local hpb = mk("Frame", { Position = UDim2.new(0, -7, 0, 0), Size = UDim2.new(0, 3, 1, 0), BackgroundColor3 = Color3.fromRGB(18, 18, 18), BorderSizePixel = 0 }, root)
-		hpb.Parent = root
-		local hpf = mk("Frame", { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 0, 1, 0), Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(90, 220, 120), BorderSizePixel = 0 }, hpb)
-		hpf.Parent = hpb
+		local hpb = mk("Frame", { Position = UDim2.new(0, -7, 0, 0), Size = UDim2.new(0, 3, 1, 0), BackgroundColor3 = Color3.fromRGB(18, 18, 18), BorderSizePixel = 0, Parent = root }, root)
+		local hpf = mk("Frame", { AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 0, 1, 0), Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(90, 220, 120), BorderSizePixel = 0, Parent = hpb }, hpb)
 		e = { root = root, st = st, nm = nm, hpb = hpb, hpf = hpf }
 		pool[p] = e
 		return e
 	end
-	
+
 	Players.PlayerRemoving:Connect(function(p)
 		if pool[p] then
-			pool[p].root:Destroy()
+			pcall(function()
+				if pool[p].root then pool[p].root:Destroy() end
+			end)
 			pool[p] = nil
 		end
 	end)
-	
+
 	local function esp()
 		if not cfg.vis.esp or not cam then
 			for _, e in pairs(pool) do e.root.Visible = false end
@@ -810,20 +787,29 @@ local function setup()
 			if not seen[p] then e.root.Visible = false end
 		end
 	end
-	
+
 	local pressing = false
 	local onSince
-	
+
+	local function releaseMouse()
+		if not pressing then return end
+		pressing = false
+		if hasMouseRelease then
+			pcall(mouse1release)
+		end
+	end
+
 	local function trig()
-		if not cfg.trig.press or mobile then
-			if pressing and type(mouse1release) == "function" then
-				mouse1release()
-			end
-			pressing = false
+		if not cfg.trig.press then
+			releaseMouse()
 			return
 		end
 		if not cam then return end
-		tpr.FilterDescendantsInstances = { lp.Character }
+		-- проверка функций один раз при первом вызове
+		if not hasMousePress and not hasMouseClick then
+			return
+		end
+		tpr.FilterDescendantsInstances = lp.Character and { lp.Character } or {}
 		local hit = WS:Raycast(cam.CFrame.Position, cam.CFrame.LookVector * 1200, tpr)
 		local p = hit and Players:GetPlayerFromCharacter(hit.Instance:FindFirstAncestorOfClass("Model"))
 		local ok = p and p ~= lp and not (cfg.aim.team and same(p))
@@ -832,33 +818,37 @@ local function setup()
 		if ok then
 			onSince = onSince or os.clock()
 			if not pressing and (os.clock() - onSince) * 1000 >= cfg.trig.react then
-				if type(mouse1press) == "function" then
-					mouse1press()
+				if hasMousePress then
+					pcall(mouse1press)
 					pressing = true
+				elseif hasMouseClick then
+					pcall(mouse1click)
+					-- mouse1click однократный, поэтому "pressing" держим на короткое время
+					pressing = true
+					deferT(function()
+						waitT(0.05)
+						releaseMouse()
+					end)
 				end
 			end
 		else
 			onSince = nil
-			if pressing then
-				if type(mouse1release) == "function" then mouse1release() end
-				pressing = false
-			end
+			releaseMouse()
 		end
 	end
-	
+
 	local function spd(v)
 		if v <= 3 then return 0.2 + 0.8 * (v - 1) / 2 end
 		return 1 + 9 * (v - 3) / 2
 	end
-	
+
 	local function jmp(v)
 		if v <= 3 then return 0.2 + 0.8 * (v - 1) / 2 end
 		return 1 + 4 * (v - 3) / 2
 	end
-	
-	local jumpKeys = {}
+
 	local baseSpeed, savedVel, stuckOn
-	
+
 	local function moveTick()
 		local h, ch = hum()
 		if not h then
@@ -894,7 +884,7 @@ local function setup()
 			end
 		end
 	end
-	
+
 	local function airJump()
 		if not cfg.move.infjump or cfg.move.stuck then return end
 		local h, ch = hum()
@@ -909,15 +899,20 @@ local function setup()
 		h:ChangeState(Enum.HumanoidStateType.Jumping)
 	end
 
+	-- сброс baseSpeed при респавне
+	lp.CharacterAdded:Connect(function()
+		baseSpeed = nil
+		stuckOn = nil
+		savedVel = nil
+	end)
+
 	UIS.InputBegan:Connect(function(i)
 		if i.KeyCode == Enum.KeyCode.Space then
-			jumpKeys[i] = true
 			airJump()
 		end
 		if i.UserInputType == Enum.UserInputType.Touch and mobile then
 			local vp = cam.ViewportSize
 			if i.Position.X > vp.X * 0.6 and i.Position.Y > vp.Y * 0.5 then
-				jumpKeys[i] = true
 				airJump()
 			end
 		end
@@ -927,48 +922,36 @@ local function setup()
 			end
 		end
 	end)
-	
+
 	UIS.InputEnded:Connect(function(i)
-		jumpKeys[i] = nil
 		if not mobile and i.KeyCode == Enum.KeyCode.C then cfg.aim.on = false end
 	end)
-	
+
 	WS:GetPropertyChangedSignal("CurrentCamera"):Connect(function() cam = WS.CurrentCamera end)
-	
+
 	spawnT(function()
 		while true do
 			waitT(0.12)
-			lDev.Text = "device:  " .. (mobile and "mobile" or "pc")
-			lSt.Text = "state:  " .. (cfg.aim.on and (target and "locked" or "searching") or "idle")
-			lTar.Text = "target:  " .. (target and target.Name or "-")
-			lDist.Text = "dist:  " .. (tDist and math.floor(tDist) .. "m" or "-")
-			lKey.Text = "key:  " .. (mobile and "lock button" or "hold C")
 			if lock then syncLock() end
-		syncBtns()
+			syncBtns()
 		end
 	end)
-	
+
 	pcall(function()
 		RunService:BindToRenderStep("aimMain", Enum.RenderPriority.Camera.Value + 10, function(dt)
 			tick(dt)
 			drawRing()
 		end)
 	end)
-	
-	pcall(function()
-		RunService.PreRender:Connect(function()
-			if goal and cfg.aim.speed >= 95 then cam.CFrame = goal end
-		end)
-	end)
-	
+
 	pcall(function()
 		RunService:BindToRenderStep("aimEsp", Enum.RenderPriority.Camera.Value + 11, esp)
 	end)
 
 	RunService.RenderStepped:Connect(trig)
-	
+
 	RunService.Heartbeat:Connect(moveTick)
-	
+
 	show("Combat")
 	syncBtns()
 end
