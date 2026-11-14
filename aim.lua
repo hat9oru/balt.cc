@@ -44,6 +44,10 @@ local hasMouseRelease = type(mouse1release) == "function"
 local hasMouseClick = type(mouse1click) == "function"
 log("triggerbot | mouse1press:", hasMousePress, "| mouse1release:", hasMouseRelease, "| mouse1click:", hasMouseClick)
 
+-- очистка прошлых биндов
+pcall(function() RunService:UnbindFromRenderStep("aimMain") end)
+pcall(function() RunService:UnbindFromRenderStep("aimEsp") end)
+
 local guis = {}
 local function attach(g)
 	guis[#guis + 1] = g
@@ -95,9 +99,13 @@ local function setup()
 	local DIM = Color3.fromRGB(48, 48, 52)
 
 	local cfg = {
-		aim = { fov = 120, draw = true, speed = 100, walls = true, team = true, on = false, holdBtn = false },
-		trig = { press = false, react = 60, btn = false },
-		move = { speed = 3, infjump = false, jump = 3, stuck = false, boost = true, btnSpd = false, btnJump = false, btnStuck = false },
+		aim = { enabled = true, on = false, fov = 120, draw = true, speed = 100, walls = true, team = true, holdBtn = false },
+		trig = { enabled = false, react = 60, btn = false },
+		move = {
+			speedEnabled = true, speed = 3, btnSpd = false,
+			jumpEnabled = true, jump = 3, infjump = false, btnJump = false,
+			stuck = false, btnStuck = false,
+		},
 		vis = { esp = false, name = true, hp = true, team = true, btn = false },
 	}
 
@@ -177,7 +185,7 @@ local function setup()
 		return WS:Raycast(cam.CFrame.Position, pos - cam.CFrame.Position, rp) == nil
 	end
 
-	local target, goal, tPos, tDist, locked, lockAt
+	local target, goal, tPos, tDist, locked
 
 	local function aimPos(head)
 		return head.Position - Vector3.new(0, math.min(head.Size.Y * 0.35, 0.5), 0)
@@ -228,15 +236,17 @@ local function setup()
 		end
 		if best then
 			locked = best
-			lockAt = os.clock()
 			return best, bp, bd
 		end
 		return nil
 	end
 
 	local function tick(dt)
-		if not cam then
-			cam = WS.CurrentCamera
+		if not cam then cam = WS.CurrentCamera end
+		if not cfg.aim.enabled then
+			cfg.aim.on = false
+			goal, target, locked = nil, nil, nil
+			return
 		end
 		if not cfg.aim.on or not cam then
 			goal, target, locked = nil, nil, nil
@@ -265,7 +275,7 @@ local function setup()
 	local ring
 
 	local function drawRing()
-		if not cfg.aim.draw or not cam then
+		if not cfg.aim.draw or not cam or not cfg.aim.enabled then
 			ring.Visible = false
 			return
 		end
@@ -301,10 +311,18 @@ local function setup()
 	local mring = mk("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(15, 15), BackgroundTransparency = 1 }, micon)
 	corner(mring, UDim.new(1, 0))
 	stroke(mring, 1.5, 0)
-	local dot = mk("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(3, 3), BackgroundColor3 = WHITE, BorderSizePixel = 0 }, micon)
-	corner(dot, UDim.new(1, 0))
+	mk("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(3, 3), BackgroundColor3 = WHITE, BorderSizePixel = 0 }, micon)
+	corner(_G and nil or micon, UDim.new(1, 0)) -- placeholder, actual dot created below
+	-- proper dot
+	for _, c in ipairs(micon:GetChildren()) do
+		if c:IsA("Frame") and c.Size == UDim2.fromOffset(3, 3) then
+			local cc = Instance.new("UICorner")
+			cc.CornerRadius = UDim.new(1, 0)
+			cc.Parent = c
+		end
+	end
 	for _, d in ipairs({ { 0, -7 }, { 0, 7 }, { -7, 0 }, { 7, 0 } }) do
-		local l = mk("Frame", {
+		mk("Frame", {
 			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, d[1], 0.5, d[2]),
 			Size = d[1] == 0 and UDim2.fromOffset(1, 3) or UDim2.fromOffset(3, 1),
 			BackgroundColor3 = WHITE, BorderSizePixel = 0,
@@ -356,7 +374,7 @@ local function setup()
 		AutomaticSize = Enum.AutomaticSize.Y, Parent = left,
 	}, left)
 	mk("UIListLayout", { Padding = UDim.new(0, 5), SortOrder = Enum.SortOrder.LayoutOrder }, tabRow)
-	for _, t in ipairs({ "Combat", "Movement", "Visual" }) do
+	for _, t in ipairs({ "Combat", "Movement", "Visual", "HotKeys" }) do
 		local b = mk("TextButton", {
 			Size = UDim2.new(1, 0, 0, 26), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.88,
 			Text = t, AutoButtonColor = false, Font = Enum.Font.Gotham, TextSize = 11,
@@ -378,16 +396,20 @@ local function setup()
 		ScrollBarImageTransparency = 0.5, Parent = right,
 	}, right)
 	mk("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, content)
-	mk("UIPadding", { PaddingBottom = UDim.new(0, 10) }, content)
+	mk("UIPadding", { PaddingBottom = UDim.new(0, 10), PaddingLeft = UDim.new(0, 4), PaddingRight = UDim.new(0, 4) }, content)
+
+	content.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+		local y = content.UIListLayout.AbsoluteContentSize.Y
+		content.CanvasSize = UDim2.fromOffset(0, y + 10)
+	end)
 
 	local function rowH(h)
-		local r = mk("Frame", { Size = UDim2.new(1, 0, 0, h), BackgroundTransparency = 1 })
-		return r
+		return mk("Frame", { Size = UDim2.new(1, 0, 0, h), BackgroundTransparency = 1 })
 	end
 
 	local function head(text)
 		local f = mk("Frame", { Size = UDim2.new(1, 0, 0, 22), BackgroundTransparency = 1 })
-		local l = mk("TextLabel", {
+		mk("TextLabel", {
 			Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, Font = Enum.Font.GothamBold,
 			TextSize = 11, TextColor3 = Color3.fromRGB(120, 120, 128), TextXAlignment = Enum.TextXAlignment.Left,
 			Text = string.upper(text), Parent = f,
@@ -396,40 +418,39 @@ local function setup()
 	end
 
 	local function toggle(parent, text, state, cb)
-		local r = rowH(32)
+		local r = rowH(28)
 		r.Parent = parent
-		local l = mk("TextLabel", {
+		mk("TextLabel", {
 			Size = UDim2.new(1, -48, 1, 0), BackgroundTransparency = 1, Font = Enum.Font.Gotham,
-			TextSize = 12, TextColor3 = Color3.fromRGB(225, 225, 230), TextXAlignment = Enum.TextXAlignment.Left,
+			TextSize = 11, TextColor3 = Color3.fromRGB(225, 225, 230), TextXAlignment = Enum.TextXAlignment.Left,
 			Text = text, Parent = r,
 		}, r)
 		local b = mk("TextButton", {
-			AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -2, 0.5, 0), Size = UDim2.fromOffset(38, 18),
+			AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -2, 0.5, 0), Size = UDim2.fromOffset(34, 16),
 			Text = "", AutoButtonColor = false, BackgroundColor3 = state and WHITE or DIM, BorderSizePixel = 0,
 		}, r)
-		b.Parent = r
 		corner(b, UDim.new(1, 0))
-		local k = mk("Frame", { AnchorPoint = Vector2.new(0, 0.5), Size = UDim2.fromOffset(14, 14), BackgroundColor3 = state and Color3.new(0, 0, 0) or WHITE, BorderSizePixel = 0 }, b)
+		local k = mk("Frame", { AnchorPoint = Vector2.new(0, 0.5), Size = UDim2.fromOffset(12, 12), BackgroundColor3 = state and Color3.new(0, 0, 0) or WHITE, BorderSizePixel = 0 }, b)
 		corner(k, UDim.new(1, 0))
-		k.Position = state and UDim2.new(1, -16, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+		k.Position = state and UDim2.new(1, -14, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
 		b.MouseButton1Click:Connect(function()
 			state = not state
 			b.BackgroundColor3 = state and WHITE or DIM
 			k.BackgroundColor3 = state and Color3.new(0, 0, 0) or WHITE
-			k.Position = state and UDim2.new(1, -16, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+			k.Position = state and UDim2.new(1, -14, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
 			cb(state)
 		end)
 	end
 
 	local function slider(parent, text, min, max, def, step, fmt, cb)
-		local r = rowH(38)
+		local r = rowH(34)
 		r.Parent = parent
 		local l = mk("TextLabel", {
-			Size = UDim2.new(1, -4, 0, 15), BackgroundTransparency = 1, Font = Enum.Font.Gotham,
-			TextSize = 12, TextColor3 = Color3.fromRGB(225, 225, 230), TextXAlignment = Enum.TextXAlignment.Left,
+			Size = UDim2.new(1, -4, 0, 13), BackgroundTransparency = 1, Font = Enum.Font.Gotham,
+			TextSize = 11, TextColor3 = Color3.fromRGB(225, 225, 230), TextXAlignment = Enum.TextXAlignment.Left,
 			Text = text .. ":  " .. fmt(def), Parent = r,
 		}, r)
-		local tr = mk("Frame", { Position = UDim2.fromOffset(0, 26), Size = UDim2.new(1, -4, 0, 4), BackgroundColor3 = DIM, BorderSizePixel = 0, Parent = r }, r)
+		local tr = mk("Frame", { Position = UDim2.fromOffset(0, 24), Size = UDim2.new(1, -4, 0, 4), BackgroundColor3 = DIM, BorderSizePixel = 0, Parent = r }, r)
 		corner(tr, UDim.new(1, 0))
 		local fill = mk("Frame", { Size = UDim2.new(0, 0, 1, 0), BackgroundColor3 = WHITE, BorderSizePixel = 0, Parent = tr }, tr)
 		corner(fill, UDim.new(1, 0))
@@ -474,13 +495,88 @@ local function setup()
 	end
 
 	local function text(parent, t, color)
-		local f = mk("Frame", { Size = UDim2.new(1, 0, 0, 42), BackgroundTransparency = 1, Parent = parent }, parent)
-		local l = mk("TextLabel", {
+		local f = mk("Frame", { Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1, Parent = parent }, parent)
+		mk("TextLabel", {
 			Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1, Font = Enum.Font.Gotham,
-			TextSize = 10, TextColor3 = color or Color3.fromRGB(120, 120, 128), TextXAlignment = Enum.TextXAlignment.Left,
+			TextSize = 9, TextColor3 = color or Color3.fromRGB(120, 120, 128), TextXAlignment = Enum.TextXAlignment.Left,
 			TextYAlignment = Enum.TextYAlignment.Top, TextWrapped = true, Text = t, Parent = f,
 		}, f)
 		return f
+	end
+
+	-- ======== CARD LAYOUT ========
+	local function rowCards(parent)
+		local r = mk("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1 })
+		mk("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, r)
+		r.Parent = parent
+		return r
+	end
+
+	local function card(parent, title, enabled, onToggle, fullWidth)
+		local size = fullWidth and UDim2.new(1, 0, 0, 0) or UDim2.new(0.5, -3, 0, 0)
+		local c = mk("Frame", {
+			Size = size,
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundColor3 = Color3.new(0, 0, 0),
+			BackgroundTransparency = 0.55,
+			BorderSizePixel = 0,
+		})
+		corner(c, UDim.new(0, 10))
+		stroke(c, 1, 0.85)
+
+		local header = mk("Frame", { Size = UDim2.new(1, 0, 0, 28), BackgroundTransparency = 1 }, c)
+		mk("TextLabel", {
+			Position = UDim2.fromOffset(10, 0),
+			Size = UDim2.new(1, -58, 1, 0),
+			BackgroundTransparency = 1,
+			Font = Enum.Font.GothamBold,
+			TextSize = 12,
+			TextColor3 = WHITE,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			Text = title,
+			Parent = header,
+		}, header)
+
+		local tState = enabled
+		local tb = mk("TextButton", {
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.new(1, -8, 0.5, 0),
+			Size = UDim2.fromOffset(34, 16),
+			BackgroundColor3 = tState and WHITE or DIM,
+			BorderSizePixel = 0,
+			Text = "",
+			AutoButtonColor = false,
+			Parent = header,
+		}, header)
+		corner(tb, UDim.new(1, 0))
+		local tk = mk("Frame", {
+			AnchorPoint = Vector2.new(0, 0.5),
+			Size = UDim2.fromOffset(12, 12),
+			BackgroundColor3 = tState and Color3.new(0, 0, 0) or WHITE,
+			BorderSizePixel = 0,
+			Parent = tb,
+		}, tb)
+		corner(tk, UDim.new(1, 0))
+		tk.Position = tState and UDim2.new(1, -14, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+		tb.MouseButton1Click:Connect(function()
+			tState = not tState
+			tb.BackgroundColor3 = tState and WHITE or DIM
+			tk.BackgroundColor3 = tState and Color3.new(0, 0, 0) or WHITE
+			tk.Position = tState and UDim2.new(1, -14, 0.5, 0) or UDim2.new(0, 2, 0.5, 0)
+			onToggle(tState)
+		end)
+
+		local body = mk("Frame", {
+			Position = UDim2.fromOffset(0, 28),
+			Size = UDim2.new(1, 0, 0, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundTransparency = 1,
+		}, c)
+		mk("UIListLayout", { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }, body)
+		mk("UIPadding", { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8) }, body)
+
+		c.Parent = parent
+		return c, body
 	end
 
 	local pages = {}
@@ -491,42 +587,55 @@ local function setup()
 	end
 
 	pages.Combat = function()
-		slider(content, "Fov", 20, 179, cfg.aim.fov, 1, tostring, function(v) cfg.aim.fov = v end)
-		toggle(content, "Draw Fov", cfg.aim.draw, function(v) cfg.aim.draw = v end)
-		slider(content, "Aim Speed", 1, 100, cfg.aim.speed, 1, tostring, function(v) cfg.aim.speed = v end)
-		toggle(content, "Wall Check", cfg.aim.walls, function(v) cfg.aim.walls = v end)
-		toggle(content, "Team Check", cfg.aim.team, function(v) cfg.aim.team = v end)
-		toggle(content, "Lock AimButton", cfg.aim.holdBtn, function(v) cfg.aim.holdBtn = v end)
-		head("TriggerBot").Parent = content
-		toggle(content, "Press", cfg.trig.press, function(v) cfg.trig.press = v; if syncBtns then syncBtns() end end)
-		toggle(content, "Button", cfg.trig.btn, function(v) cfg.trig.btn = v; syncBtns() end)
-		slider(content, "Reaction", 0, 500, cfg.trig.react, 1, function(v) return v .. " ms" end, function(v) cfg.trig.react = v end)
-		text(content, "1 = slow, 100 = instant. Press holds the mouse button while the crosshair is on a target.")
+		local row = rowCards(content)
+
+		local _, aBody = card(row, "Aimbot", cfg.aim.enabled, function(v) cfg.aim.enabled = v end)
+		slider(aBody, "Fov", 20, 179, cfg.aim.fov, 1, tostring, function(v) cfg.aim.fov = v end)
+		toggle(aBody, "Draw Fov", cfg.aim.draw, function(v) cfg.aim.draw = v end)
+		slider(aBody, "Aim Speed", 1, 100, cfg.aim.speed, 1, tostring, function(v) cfg.aim.speed = v end)
+		toggle(aBody, "Wall Check", cfg.aim.walls, function(v) cfg.aim.walls = v end)
+		toggle(aBody, "Team Check", cfg.aim.team, function(v) cfg.aim.team = v end)
+		toggle(aBody, "Lock AimBtn", cfg.aim.holdBtn, function(v) cfg.aim.holdBtn = v end)
+
+		local _, tBody = card(row, "Triggerbot", cfg.trig.enabled, function(v) cfg.trig.enabled = v; if syncBtns then syncBtns() end end)
+		slider(tBody, "Reaction", 0, 500, cfg.trig.react, 1, function(v) return v .. " ms" end, function(v) cfg.trig.react = v end)
+		text(tBody, "Holds mouse button while crosshair is on target.")
 	end
 
 	pages.Movement = function()
-		slider(content, "Speed", 1, 5, cfg.move.speed, 0.1, function(v) return string.format("%.1f", v) end, function(v) cfg.move.speed = v end)
-		toggle(content, "Button", cfg.move.btnSpd, function(v) cfg.move.btnSpd = v; syncBtns() end)
-		toggle(content, "Inf Jump", cfg.move.infjump, function(v) cfg.move.infjump = v; syncBtns() end)
-		toggle(content, "Button", cfg.move.btnJump, function(v) cfg.move.btnJump = v; syncBtns() end)
-		slider(content, "Jump Speed", 1, 5, cfg.move.jump, 0.1, function(v) return string.format("%.1f", v) end, function(v) cfg.move.jump = v end)
-		toggle(content, "Air Stuck", cfg.move.stuck, function(v) cfg.move.stuck = v; syncBtns() end)
-		toggle(content, "Button", cfg.move.btnStuck, function(v) cfg.move.btnStuck = v; syncBtns() end)
-		text(content, "Speed 3 = default, 1 = x0.2, 5 = x10. Jump Speed 1 = x0.2, 5 = x5.")
+		local row1 = rowCards(content)
+
+		local _, sBody = card(row1, "Speed", cfg.move.speedEnabled, function(v) cfg.move.speedEnabled = v; if syncBtns then syncBtns() end end)
+		slider(sBody, "Speed", 1, 5, cfg.move.speed, 0.1, function(v) return string.format("%.1f", v) end, function(v) cfg.move.speed = v end)
+
+		local _, jBody = card(row1, "Jump", cfg.move.jumpEnabled, function(v) cfg.move.jumpEnabled = v; if syncBtns then syncBtns() end end)
+		slider(jBody, "Jump", 1, 5, cfg.move.jump, 0.1, function(v) return string.format("%.1f", v) end, function(v) cfg.move.jump = v end)
+		toggle(jBody, "Inf Jump", cfg.move.infjump, function(v) cfg.move.infjump = v; if syncBtns then syncBtns() end end)
+
+		local row2 = rowCards(content)
+		local _, stBody = card(row2, "AirStuck", cfg.move.stuck, function(v) cfg.move.stuck = v; if syncBtns then syncBtns() end end)
+		text(stBody, "Anchors you in place.")
 	end
 
 	pages.Visual = function()
-		toggle(content, "Esp", cfg.vis.esp, function(v) cfg.vis.esp = v; syncBtns() end)
-		toggle(content, "Button", cfg.vis.btn, function(v) cfg.vis.btn = v; syncBtns() end)
-		toggle(content, "Name", cfg.vis.name, function(v) cfg.vis.name = v end)
-		toggle(content, "Hp", cfg.vis.hp, function(v) cfg.vis.hp = v end)
-		toggle(content, "Team Check", cfg.vis.team, function(v) cfg.vis.team = v end)
+		local row = rowCards(content)
+		local _, eBody = card(row, "ESP", cfg.vis.esp, function(v) cfg.vis.esp = v; if syncBtns then syncBtns() end end, true)
+		toggle(eBody, "Name", cfg.vis.name, function(v) cfg.vis.name = v end)
+		toggle(eBody, "Hp", cfg.vis.hp, function(v) cfg.vis.hp = v end)
+		toggle(eBody, "Team Check", cfg.vis.team, function(v) cfg.vis.team = v end)
 	end
 
-	local openPage
+	pages.HotKeys = function()
+		head("On-screen Buttons").Parent = content
+		toggle(content, "Triggerbot Button", cfg.trig.btn, function(v) cfg.trig.btn = v; syncBtns() end)
+		toggle(content, "Speed Button", cfg.move.btnSpd, function(v) cfg.move.btnSpd = v; syncBtns() end)
+		toggle(content, "InfJump Button", cfg.move.btnJump, function(v) cfg.move.btnJump = v; syncBtns() end)
+		toggle(content, "AirStuck Button", cfg.move.btnStuck, function(v) cfg.move.btnStuck = v; syncBtns() end)
+		toggle(content, "ESP Button", cfg.vis.btn, function(v) cfg.vis.btn = v; syncBtns() end)
+	end
+
 	local function show(name)
 		clearContent()
-		openPage = name
 		for _, b in ipairs(tabRow:GetChildren()) do
 			if b:IsA("TextButton") then
 				local act = b.Name == name
@@ -535,7 +644,9 @@ local function setup()
 			end
 		end
 		pages[name]()
-		content.CanvasSize = UDim2.new()
+		deferT(function()
+			content.CanvasSize = UDim2.fromOffset(0, content.UIListLayout.AbsoluteContentSize.Y + 10)
+		end)
 	end
 
 	for _, b in ipairs(tabRow:GetChildren()) do
@@ -543,12 +654,6 @@ local function setup()
 			b.MouseButton1Click:Connect(function() show(b.Name) end)
 		end
 	end
-	content.ChildAdded:Connect(function()
-		deferT(function()
-			local y = content.UIListLayout.AbsoluteContentSize.Y
-			content.CanvasSize = UDim2.fromOffset(0, y)
-		end)
-	end)
 
 	local function setMenu(v)
 		frame.Visible = v
@@ -565,7 +670,7 @@ local function setup()
 
 	local function syncLock()
 		if not lock then return end
-		if cfg.aim.on then
+		if cfg.aim.on and cfg.aim.enabled then
 			lockShackle.Position = UDim2.new(0.5, 0, 0, 8)
 			lockShackle.Rotation = 0
 		else
@@ -644,7 +749,7 @@ local function setup()
 				return
 			end
 			lockIn = nil
-			if not lockMoved then
+			if not lockMoved and cfg.aim.enabled then
 				cfg.aim.on = not cfg.aim.on
 				syncLock()
 			end
@@ -676,8 +781,8 @@ local function setup()
 		end)
 		mods[#mods + 1] = { b = b, flag = flag, getv = getv }
 	end
-	addBtn("TRIGGER", function() return cfg.trig.btn end, function() return cfg.trig.press end, function(v) cfg.trig.press = v end)
-	addBtn("SPEED", function() return cfg.move.btnSpd end, function() return cfg.move.boost end, function(v) cfg.move.boost = v end)
+	addBtn("TRIGGER", function() return cfg.trig.btn end, function() return cfg.trig.enabled end, function(v) cfg.trig.enabled = v end)
+	addBtn("SPEED", function() return cfg.move.btnSpd end, function() return cfg.move.speedEnabled end, function(v) cfg.move.speedEnabled = v end)
 	addBtn("INFJUMP", function() return cfg.move.btnJump end, function() return cfg.move.infjump end, function(v) cfg.move.infjump = v end)
 	addBtn("AIRSTUCK", function() return cfg.move.btnStuck end, function() return cfg.move.stuck end, function(v) cfg.move.stuck = v end)
 	addBtn("ESP", function() return cfg.vis.btn end, function() return cfg.vis.esp end, function(v) cfg.vis.esp = v end)
@@ -728,46 +833,52 @@ local function setup()
 		end
 	end)
 
-	-- ESP box по реальным частям тела (без аксессуаров), не уезжает при удалении
-	local BODY_PARTS = { "Head", "UpperTorso", "LowerTorso", "Torso", "HumanoidRootPart" }
+	-- ESP: 8 углов каждой части тела через part.CFrame (жёстко на теле, не зависит от камеры)
+	local CORNERS = {
+		Vector3.new(-0.5, -0.5, -0.5),
+		Vector3.new(-0.5, -0.5,  0.5),
+		Vector3.new(-0.5,  0.5, -0.5),
+		Vector3.new(-0.5,  0.5,  0.5),
+		Vector3.new( 0.5, -0.5, -0.5),
+		Vector3.new( 0.5, -0.5,  0.5),
+		Vector3.new( 0.5,  0.5, -0.5),
+		Vector3.new( 0.5,  0.5,  0.5),
+	}
+
 	local function esp()
 		if not cfg.vis.esp or not cam then
 			for _, e in pairs(pool) do e.root.Visible = false end
 			return
 		end
 		local seen = {}
-		local rv = cam.CFrame.RightVector
-		local uv = cam.CFrame.UpVector
 		for _, p in ipairs(Players:GetPlayers()) do
 			if p ~= lp and not (cfg.vis.team and same(p)) then
 				local head, root, ch, h = body(p, false)
-				if head and root then
-					local minX, minY, maxX, maxY, front
-					for _, partName in ipairs(BODY_PARTS) do
-						local part = ch:FindFirstChild(partName)
-						if part then
-							local pos = part.Position
+				if ch then
+					local minX, minY, maxX, maxY
+					local any = false
+					for _, part in ipairs(ch:GetChildren()) do
+						if part:IsA("BasePart") and part.Transparency < 1 then
+							local cf = part.CFrame
 							local sz = part.Size
-							for _, dx in ipairs({ -0.5, 0.5 }) do
-								for _, dy in ipairs({ -0.5, 0.5 }) do
-									local wp = pos + rv * (sz.X * dx) + uv * (sz.Y * dy)
-									local sp = cam:WorldToScreenPoint(wp)
-									if sp.Z > 0 then
-										front = true
-										minX = math.min(minX or sp.X, sp.X)
-										maxX = math.max(maxX or sp.X, sp.X)
-										minY = math.min(minY or sp.Y, sp.Y)
-										maxY = math.max(maxY or sp.Y, sp.Y)
-									end
+							for _, cornerV in ipairs(CORNERS) do
+								local wp = cf * Vector3.new(sz.X * cornerV.X, sz.Y * cornerV.Y, sz.Z * cornerV.Z)
+								local sp = cam:WorldToScreenPoint(wp)
+								if sp.Z > 0 then
+									minX = math.min(minX or sp.X, sp.X)
+									maxX = math.max(maxX or sp.X, sp.X)
+									minY = math.min(minY or sp.Y, sp.Y)
+									maxY = math.max(maxY or sp.Y, sp.Y)
+									any = true
 								end
 							end
 						end
 					end
-					if front and minX then
-						local e = entry(p)
+					if any then
 						local w = maxX - minX
 						local hh = maxY - minY
 						if w > 1 and hh > 1 then
+							local e = entry(p)
 							seen[p] = true
 							e.root.Position = UDim2.fromOffset(math.floor(minX + 0.5), math.floor(minY + 0.5))
 							e.root.Size = UDim2.fromOffset(math.floor(w + 0.5), math.floor(hh + 0.5))
@@ -778,8 +889,6 @@ local function setup()
 							local frac = math.clamp(h.Health / math.max(h.MaxHealth, 1), 0, 1)
 							e.hpf.Size = UDim2.fromScale(1, frac)
 							e.hpf.BackgroundColor3 = frac > 0.7 and Color3.fromRGB(90, 220, 120) or frac > 0.45 and Color3.fromRGB(235, 220, 90) or frac > 0.2 and Color3.fromRGB(240, 160, 60) or Color3.fromRGB(235, 70, 70)
-						else
-							e.root.Visible = false
 						end
 					end
 				end
@@ -796,20 +905,16 @@ local function setup()
 	local function releaseMouse()
 		if not pressing then return end
 		pressing = false
-		if hasMouseRelease then
-			pcall(mouse1release)
-		end
+		if hasMouseRelease then pcall(mouse1release) end
 	end
 
 	local function trig()
-		if not cfg.trig.press then
+		if not cfg.trig.enabled then
 			releaseMouse()
 			return
 		end
 		if not cam then return end
-		if not hasMousePress and not hasMouseClick then
-			return
-		end
+		if not hasMousePress and not hasMouseClick then return end
 		tpr.FilterDescendantsInstances = lp.Character and { lp.Character } or {}
 		local hit = WS:Raycast(cam.CFrame.Position, cam.CFrame.LookVector * 1200, tpr)
 		local p = hit and Players:GetPlayerFromCharacter(hit.Instance:FindFirstAncestorOfClass("Model"))
@@ -857,16 +962,18 @@ local function setup()
 		end
 		baseSpeed = baseSpeed or h.WalkSpeed
 		if baseSpeed <= 0 then baseSpeed = 16 end
-		if cfg.move.boost then
+		if cfg.move.speedEnabled then
 			h.WalkSpeed = baseSpeed * spd(cfg.move.speed)
 		else
 			h.WalkSpeed = baseSpeed
 		end
-		local f = jmp(cfg.move.jump)
-		if h.UseJumpPower then
-			h.JumpPower = 50 * f
-		else
-			h.JumpHeight = 7.2 * f
+		if cfg.move.jumpEnabled then
+			local f = jmp(cfg.move.jump)
+			if h.UseJumpPower then
+				h.JumpPower = 50 * f
+			else
+				h.JumpHeight = 7.2 * f
+			end
 		end
 		local root = ch:FindFirstChild("HumanoidRootPart")
 		if root then
@@ -886,7 +993,7 @@ local function setup()
 	end
 
 	local function airJump()
-		if not cfg.move.infjump or cfg.move.stuck then return end
+		if not cfg.move.jumpEnabled or not cfg.move.infjump or cfg.move.stuck then return end
 		local h, ch = hum()
 		if not h then return end
 		local root = ch:FindFirstChild("HumanoidRootPart")
@@ -916,7 +1023,7 @@ local function setup()
 			end
 		end
 		if not mobile then
-			if i.KeyCode == Enum.KeyCode.C then
+			if i.KeyCode == Enum.KeyCode.C and cfg.aim.enabled then
 				cfg.aim.on = true
 			end
 		end
@@ -948,7 +1055,6 @@ local function setup()
 	end)
 
 	RunService.RenderStepped:Connect(trig)
-
 	RunService.Heartbeat:Connect(moveTick)
 
 	show("Combat")
