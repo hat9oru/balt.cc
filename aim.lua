@@ -39,7 +39,6 @@ end
 local core = best()
 log("start | mobile:", mobile, "| parent:", core and core:GetFullName() or "none")
 
--- проверка функций triggerbot
 local hasMousePress = type(mouse1press) == "function"
 local hasMouseRelease = type(mouse1release) == "function"
 local hasMouseClick = type(mouse1click) == "function"
@@ -188,13 +187,11 @@ local function setup()
 		return (ang / fov) * 0.5 + (len / 1200) * 0.5
 	end
 
-	-- Жёсткий лок: пока цель валидна — не меняем. Сброс только при смерти/выходе из fov/за стеной.
 	local function scan()
 		local o = cam.CFrame.Position
 		local look = cam.CFrame.LookVector
 		local fov = math.max(cfg.aim.fov, 20)
 
-		-- если есть залоченная цель — проверяем только её
 		if locked then
 			local head, root, ch = body(locked, cfg.aim.team)
 			if head then
@@ -209,7 +206,6 @@ local function setup()
 			locked = nil
 		end
 
-		-- иначе ищем новую цель
 		local best, bp, bd, bs
 		for _, p in ipairs(Players:GetPlayers()) do
 			local head, root, ch = body(p, cfg.aim.team)
@@ -268,7 +264,6 @@ local function setup()
 
 	local ring
 
-	-- FOV-круг: статичный центр экрана, не зависит от позиции в мире
 	local function drawRing()
 		if not cfg.aim.draw or not cam then
 			ring.Visible = false
@@ -426,7 +421,7 @@ local function setup()
 		end)
 	end
 
-	local function slider(parent, text, min, max, def, fmt, cb)
+	local function slider(parent, text, min, max, def, step, fmt, cb)
 		local r = rowH(38)
 		r.Parent = parent
 		local l = mk("TextLabel", {
@@ -443,6 +438,10 @@ local function setup()
 		local v = def
 		local function apply(nv, fire)
 			v = math.clamp(nv, min, max)
+			if step and step > 0 then
+				v = math.floor(v / step + 0.5) * step
+				v = math.clamp(v, min, max)
+			end
 			local a = (v - min) / (max - min)
 			fill.Size = UDim2.fromScale(a, 1)
 			knob.Position = UDim2.new(a, 0, 0.5, 0)
@@ -455,7 +454,7 @@ local function setup()
 			if i.UserInputType == Enum.UserInputType.Touch or i.UserInputType == Enum.UserInputType.MouseButton1 then
 				dg = i
 				local x = math.clamp((i.Position.X - tr.AbsolutePosition.X) / math.max(tr.AbsoluteSize.X, 1), 0, 1)
-				apply(math.floor(min + (max - min) * x + 0.5), true)
+				apply(min + (max - min) * x, true)
 			end
 		end)
 		UIS.InputChanged:Connect(function(i)
@@ -464,7 +463,7 @@ local function setup()
 			if ty == Enum.UserInputType.Touch and i ~= dg then return end
 			if ty ~= Enum.UserInputType.Touch and ty ~= Enum.UserInputType.MouseMovement then return end
 			local x = math.clamp((i.Position.X - tr.AbsolutePosition.X) / math.max(tr.AbsoluteSize.X, 1), 0, 1)
-			apply(math.floor(min + (max - min) * x + 0.5), true)
+			apply(min + (max - min) * x, true)
 		end)
 		UIS.InputEnded:Connect(function(i)
 			if not dg then return end
@@ -492,25 +491,25 @@ local function setup()
 	end
 
 	pages.Combat = function()
-		slider(content, "Fov", 20, 179, cfg.aim.fov, tostring, function(v) cfg.aim.fov = v end)
+		slider(content, "Fov", 20, 179, cfg.aim.fov, 1, tostring, function(v) cfg.aim.fov = v end)
 		toggle(content, "Draw Fov", cfg.aim.draw, function(v) cfg.aim.draw = v end)
-		slider(content, "Aim Speed", 1, 100, cfg.aim.speed, tostring, function(v) cfg.aim.speed = v end)
+		slider(content, "Aim Speed", 1, 100, cfg.aim.speed, 1, tostring, function(v) cfg.aim.speed = v end)
 		toggle(content, "Wall Check", cfg.aim.walls, function(v) cfg.aim.walls = v end)
 		toggle(content, "Team Check", cfg.aim.team, function(v) cfg.aim.team = v end)
 		toggle(content, "Lock AimButton", cfg.aim.holdBtn, function(v) cfg.aim.holdBtn = v end)
 		head("TriggerBot").Parent = content
 		toggle(content, "Press", cfg.trig.press, function(v) cfg.trig.press = v; if syncBtns then syncBtns() end end)
 		toggle(content, "Button", cfg.trig.btn, function(v) cfg.trig.btn = v; syncBtns() end)
-		slider(content, "Reaction", 0, 500, cfg.trig.react, function(v) return v .. " ms" end, function(v) cfg.trig.react = v end)
+		slider(content, "Reaction", 0, 500, cfg.trig.react, 1, function(v) return v .. " ms" end, function(v) cfg.trig.react = v end)
 		text(content, "1 = slow, 100 = instant. Press holds the mouse button while the crosshair is on a target.")
 	end
 
 	pages.Movement = function()
-		slider(content, "Speed", 1, 5, cfg.move.speed, tostring, function(v) cfg.move.speed = v end)
+		slider(content, "Speed", 1, 5, cfg.move.speed, 0.1, function(v) return string.format("%.1f", v) end, function(v) cfg.move.speed = v end)
 		toggle(content, "Button", cfg.move.btnSpd, function(v) cfg.move.btnSpd = v; syncBtns() end)
 		toggle(content, "Inf Jump", cfg.move.infjump, function(v) cfg.move.infjump = v; syncBtns() end)
 		toggle(content, "Button", cfg.move.btnJump, function(v) cfg.move.btnJump = v; syncBtns() end)
-		slider(content, "Jump Speed", 1, 5, cfg.move.jump, tostring, function(v) cfg.move.jump = v end)
+		slider(content, "Jump Speed", 1, 5, cfg.move.jump, 0.1, function(v) return string.format("%.1f", v) end, function(v) cfg.move.jump = v end)
 		toggle(content, "Air Stuck", cfg.move.stuck, function(v) cfg.move.stuck = v; syncBtns() end)
 		toggle(content, "Button", cfg.move.btnStuck, function(v) cfg.move.btnStuck = v; syncBtns() end)
 		text(content, "Speed 3 = default, 1 = x0.2, 5 = x10. Jump Speed 1 = x0.2, 5 = x5.")
@@ -729,55 +728,58 @@ local function setup()
 		end
 	end)
 
+	-- ESP box по реальным частям тела (без аксессуаров), не уезжает при удалении
+	local BODY_PARTS = { "Head", "UpperTorso", "LowerTorso", "Torso", "HumanoidRootPart" }
 	local function esp()
 		if not cfg.vis.esp or not cam then
 			for _, e in pairs(pool) do e.root.Visible = false end
 			return
 		end
 		local seen = {}
+		local rv = cam.CFrame.RightVector
+		local uv = cam.CFrame.UpVector
 		for _, p in ipairs(Players:GetPlayers()) do
 			if p ~= lp and not (cfg.vis.team and same(p)) then
 				local head, root, ch, h = body(p, false)
-				if head then
-					local ok, cfr, size = pcall(function() return ch:GetBoundingBox() end)
-					if ok then
-						local center = cfr.Position
-						local rv = cam.CFrame.RightVector
-						local uv = cam.CFrame.UpVector
-						local hw = size.X / 2 + 0.1
-						local hh = size.Y / 2
-						local minX, minY, maxX, maxY, front
-						for _, sx in ipairs({ -1, 1 }) do
-							for _, sy in ipairs({ -1, 1 }) do
-								local wp = center + rv * (hw * sx) + uv * (hh * sy)
-								local sp = cam:WorldToScreenPoint(wp)
-								if sp.Z > 0 then
-									front = true
-									minX = math.min(minX or sp.X, sp.X)
-									maxX = math.max(maxX or sp.X, sp.X)
-									minY = math.min(minY or sp.Y, sp.Y)
-									maxY = math.max(maxY or sp.Y, sp.Y)
+				if head and root then
+					local minX, minY, maxX, maxY, front
+					for _, partName in ipairs(BODY_PARTS) do
+						local part = ch:FindFirstChild(partName)
+						if part then
+							local pos = part.Position
+							local sz = part.Size
+							for _, dx in ipairs({ -0.5, 0.5 }) do
+								for _, dy in ipairs({ -0.5, 0.5 }) do
+									local wp = pos + rv * (sz.X * dx) + uv * (sz.Y * dy)
+									local sp = cam:WorldToScreenPoint(wp)
+									if sp.Z > 0 then
+										front = true
+										minX = math.min(minX or sp.X, sp.X)
+										maxX = math.max(maxX or sp.X, sp.X)
+										minY = math.min(minY or sp.Y, sp.Y)
+										maxY = math.max(maxY or sp.Y, sp.Y)
+									end
 								end
 							end
 						end
-						if front and minX then
-							local e = entry(p)
-							local w = maxX - minX
-							local hh2 = maxY - minY
-							if w > 1 and hh2 > 1 then
-								seen[p] = true
-								e.root.Position = UDim2.fromOffset(math.floor(minX + 0.5), math.floor(minY + 0.5))
-								e.root.Size = UDim2.fromOffset(math.floor(w + 0.5), math.floor(hh2 + 0.5))
-								e.root.Visible = true
-								e.nm.Visible = cfg.vis.name
-								e.nm.Text = p.Name
-								e.hpb.Visible = cfg.vis.hp
-								local frac = math.clamp(h.Health / math.max(h.MaxHealth, 1), 0, 1)
-								e.hpf.Size = UDim2.fromScale(1, frac)
-								e.hpf.BackgroundColor3 = frac > 0.7 and Color3.fromRGB(90, 220, 120) or frac > 0.45 and Color3.fromRGB(235, 220, 90) or frac > 0.2 and Color3.fromRGB(240, 160, 60) or Color3.fromRGB(235, 70, 70)
-							else
-								e.root.Visible = false
-							end
+					end
+					if front and minX then
+						local e = entry(p)
+						local w = maxX - minX
+						local hh = maxY - minY
+						if w > 1 and hh > 1 then
+							seen[p] = true
+							e.root.Position = UDim2.fromOffset(math.floor(minX + 0.5), math.floor(minY + 0.5))
+							e.root.Size = UDim2.fromOffset(math.floor(w + 0.5), math.floor(hh + 0.5))
+							e.root.Visible = true
+							e.nm.Visible = cfg.vis.name
+							e.nm.Text = p.Name
+							e.hpb.Visible = cfg.vis.hp
+							local frac = math.clamp(h.Health / math.max(h.MaxHealth, 1), 0, 1)
+							e.hpf.Size = UDim2.fromScale(1, frac)
+							e.hpf.BackgroundColor3 = frac > 0.7 and Color3.fromRGB(90, 220, 120) or frac > 0.45 and Color3.fromRGB(235, 220, 90) or frac > 0.2 and Color3.fromRGB(240, 160, 60) or Color3.fromRGB(235, 70, 70)
+						else
+							e.root.Visible = false
 						end
 					end
 				end
@@ -805,7 +807,6 @@ local function setup()
 			return
 		end
 		if not cam then return end
-		-- проверка функций один раз при первом вызове
 		if not hasMousePress and not hasMouseClick then
 			return
 		end
@@ -823,7 +824,6 @@ local function setup()
 					pressing = true
 				elseif hasMouseClick then
 					pcall(mouse1click)
-					-- mouse1click однократный, поэтому "pressing" держим на короткое время
 					pressing = true
 					deferT(function()
 						waitT(0.05)
@@ -899,7 +899,6 @@ local function setup()
 		h:ChangeState(Enum.HumanoidStateType.Jumping)
 	end
 
-	-- сброс baseSpeed при респавне
 	lp.CharacterAdded:Connect(function()
 		baseSpeed = nil
 		stuckOn = nil
