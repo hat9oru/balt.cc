@@ -44,7 +44,6 @@ local hasMouseRelease = type(mouse1release) == "function"
 local hasMouseClick = type(mouse1click) == "function"
 log("triggerbot | mouse1press:", hasMousePress, "| mouse1release:", hasMouseRelease, "| mouse1click:", hasMouseClick)
 
--- очистка прошлых биндов
 pcall(function() RunService:UnbindFromRenderStep("aimMain") end)
 pcall(function() RunService:UnbindFromRenderStep("aimEsp") end)
 
@@ -311,16 +310,8 @@ local function setup()
 	local mring = mk("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(15, 15), BackgroundTransparency = 1 }, micon)
 	corner(mring, UDim.new(1, 0))
 	stroke(mring, 1.5, 0)
-	mk("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(3, 3), BackgroundColor3 = WHITE, BorderSizePixel = 0 }, micon)
-	corner(_G and nil or micon, UDim.new(1, 0)) -- placeholder, actual dot created below
-	-- proper dot
-	for _, c in ipairs(micon:GetChildren()) do
-		if c:IsA("Frame") and c.Size == UDim2.fromOffset(3, 3) then
-			local cc = Instance.new("UICorner")
-			cc.CornerRadius = UDim.new(1, 0)
-			cc.Parent = c
-		end
-	end
+	local mdot = mk("Frame", { AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(3, 3), BackgroundColor3 = WHITE, BorderSizePixel = 0 }, micon)
+	corner(mdot, UDim.new(1, 0))
 	for _, d in ipairs({ { 0, -7 }, { 0, 7 }, { -7, 0 }, { 7, 0 } }) do
 		mk("Frame", {
 			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, d[1], 0.5, d[2]),
@@ -504,7 +495,6 @@ local function setup()
 		return f
 	end
 
-	-- ======== CARD LAYOUT ========
 	local function rowCards(parent)
 		local r = mk("Frame", { Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1 })
 		mk("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, r)
@@ -833,17 +823,16 @@ local function setup()
 		end
 	end)
 
-	-- ESP: 8 углов каждой части тела через part.CFrame (жёстко на теле, не зависит от камеры)
-	local CORNERS = {
-		Vector3.new(-0.5, -0.5, -0.5),
-		Vector3.new(-0.5, -0.5,  0.5),
-		Vector3.new(-0.5,  0.5, -0.5),
-		Vector3.new(-0.5,  0.5,  0.5),
-		Vector3.new( 0.5, -0.5, -0.5),
-		Vector3.new( 0.5, -0.5,  0.5),
-		Vector3.new( 0.5,  0.5, -0.5),
-		Vector3.new( 0.5,  0.5,  0.5),
-	}
+	-- ESP: WorldToViewportPoint (БЕЗ GuiInset!) — совместимо с ScreenGui IgnoreGuiInset=true.
+	-- Box от макушки (Head + Size/2) до ступни (RightFoot / Right Leg / LowerTorso).
+	local function findFoot(ch)
+		return ch:FindFirstChild("RightFoot")
+			or ch:FindFirstChild("Right Leg")
+			or ch:FindFirstChild("LeftFoot")
+			or ch:FindFirstChild("Left Leg")
+			or ch:FindFirstChild("LowerTorso")
+			or ch:FindFirstChild("Torso")
+	end
 
 	local function esp()
 		if not cfg.vis.esp or not cam then
@@ -854,34 +843,25 @@ local function setup()
 		for _, p in ipairs(Players:GetPlayers()) do
 			if p ~= lp and not (cfg.vis.team and same(p)) then
 				local head, root, ch, h = body(p, false)
-				if ch then
-					local minX, minY, maxX, maxY
-					local any = false
-					for _, part in ipairs(ch:GetChildren()) do
-						if part:IsA("BasePart") and part.Transparency < 1 then
-							local cf = part.CFrame
-							local sz = part.Size
-							for _, cornerV in ipairs(CORNERS) do
-								local wp = cf * Vector3.new(sz.X * cornerV.X, sz.Y * cornerV.Y, sz.Z * cornerV.Z)
-								local sp = cam:WorldToScreenPoint(wp)
-								if sp.Z > 0 then
-									minX = math.min(minX or sp.X, sp.X)
-									maxX = math.max(maxX or sp.X, sp.X)
-									minY = math.min(minY or sp.Y, sp.Y)
-									maxY = math.max(maxY or sp.Y, sp.Y)
-									any = true
-								end
-							end
-						end
-					end
-					if any then
-						local w = maxX - minX
-						local hh = maxY - minY
-						if w > 1 and hh > 1 then
+				if head and root then
+					local topPos = head.Position + Vector3.new(0, head.Size.Y * 0.5, 0)
+					local foot = findFoot(ch) or root
+					local botPos = foot.Position - Vector3.new(0, foot.Size.Y * 0.5, 0)
+
+					local topVP, topOn = cam:WorldToViewportPoint(topPos)
+					local botVP, botOn = cam:WorldToViewportPoint(botPos)
+
+					if topOn and botOn and topVP.Z > 0 and botVP.Z > 0 then
+						local bh = math.abs(topVP.Y - botVP.Y)
+						local bw = bh * 0.55
+						if bh > 8 and bw > 3 then
+							local bx = topVP.X - bw * 0.5
+							local by = math.min(topVP.Y, botVP.Y)
+
 							local e = entry(p)
 							seen[p] = true
-							e.root.Position = UDim2.fromOffset(math.floor(minX + 0.5), math.floor(minY + 0.5))
-							e.root.Size = UDim2.fromOffset(math.floor(w + 0.5), math.floor(hh + 0.5))
+							e.root.Position = UDim2.fromOffset(math.floor(bx + 0.5), math.floor(by + 0.5))
+							e.root.Size = UDim2.fromOffset(math.floor(bw + 0.5), math.floor(bh + 0.5))
 							e.root.Visible = true
 							e.nm.Visible = cfg.vis.name
 							e.nm.Text = p.Name
