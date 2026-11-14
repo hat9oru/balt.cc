@@ -47,7 +47,40 @@ log("triggerbot | mouse1press:", hasMousePress, "| mouse1release:", hasMouseRele
 pcall(function() RunService:UnbindFromRenderStep("aimMain") end)
 pcall(function() RunService:UnbindFromRenderStep("aimEsp") end)
 
+-- === состояние для полной выгрузки ===
+local running = true
+local conns = {}
 local guis = {}
+
+local function track(c)
+	if c then conns[#conns + 1] = c end
+	return c
+end
+
+local function doUnload()
+	if not running then return end
+	running = false
+
+	-- 1. отключить все соединения
+	for i = 1, #conns do
+		pcall(function() conns[i]:Disconnect() end)
+	end
+	conns = {}
+
+	-- 2. снять render steps
+	pcall(function() RunService:UnbindFromRenderStep("aimMain") end)
+	pcall(function() RunService:UnbindFromRenderStep("aimEsp") end)
+
+	-- 3. уничтожить все GUI
+	for i = 1, #guis do
+		pcall(function() guis[i]:Destroy() end)
+	end
+	guis = {}
+	pcall(function() if diagGui then diagGui:Destroy() end end)
+
+	log("unloaded")
+end
+
 local function attach(g)
 	guis[#guis + 1] = g
 	pcall(function()
@@ -94,6 +127,8 @@ diagBox.Visible = false
 diagBox.Parent = diagFrame
 
 local function setup()
+	if not running then return end
+
 	local WHITE = Color3.new(1, 1, 1)
 	local DIM = Color3.fromRGB(48, 48, 52)
 
@@ -375,6 +410,27 @@ local function setup()
 		b.Name = t
 	end
 
+	-- === UNLOAD button внизу левой панели ===
+	local unloadBtn = mk("TextButton", {
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 8, 1, -8),
+		Size = UDim2.new(1, -16, 0, 32),
+		BackgroundColor3 = Color3.fromRGB(190, 45, 45),
+		BackgroundTransparency = 0.25,
+		Text = "UnLoad",
+		AutoButtonColor = false,
+		Font = Enum.Font.GothamBold,
+		TextSize = 12,
+		TextColor3 = WHITE,
+		BorderSizePixel = 0,
+		Parent = left,
+	}, left)
+	corner(unloadBtn, UDim.new(0, 8))
+	stroke(unloadBtn, 1, 0.7)
+	unloadBtn.MouseButton1Click:Connect(function()
+		doUnload()
+	end)
+
 	mk("TextLabel", {
 		Position = UDim2.fromOffset(10, 6), Size = UDim2.new(1, -20, 0, 14), BackgroundTransparency = 1,
 		Font = Enum.Font.GothamBold, TextSize = 10, TextColor3 = Color3.fromRGB(120, 120, 128),
@@ -389,10 +445,10 @@ local function setup()
 	mk("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }, content)
 	mk("UIPadding", { PaddingBottom = UDim.new(0, 10), PaddingLeft = UDim.new(0, 4), PaddingRight = UDim.new(0, 4) }, content)
 
-	content.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	track(content.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 		local y = content.UIListLayout.AbsoluteContentSize.Y
 		content.CanvasSize = UDim2.fromOffset(0, y + 10)
-	end)
+	end))
 
 	local function rowH(h)
 		return mk("Frame", { Size = UDim2.new(1, 0, 0, h), BackgroundTransparency = 1 })
@@ -469,20 +525,20 @@ local function setup()
 				apply(min + (max - min) * x, true)
 			end
 		end)
-		UIS.InputChanged:Connect(function(i)
+		track(UIS.InputChanged:Connect(function(i)
 			if not dg then return end
 			local ty = i.UserInputType
 			if ty == Enum.UserInputType.Touch and i ~= dg then return end
 			if ty ~= Enum.UserInputType.Touch and ty ~= Enum.UserInputType.MouseMovement then return end
 			local x = math.clamp((i.Position.X - tr.AbsolutePosition.X) / math.max(tr.AbsoluteSize.X, 1), 0, 1)
 			apply(min + (max - min) * x, true)
-		end)
-		UIS.InputEnded:Connect(function(i)
+		end))
+		track(UIS.InputEnded:Connect(function(i)
 			if not dg then return end
 			local ty = i.UserInputType
 			if ty == Enum.UserInputType.Touch and i ~= dg then return end
 			dg = nil
-		end)
+		end))
 	end
 
 	local function text(parent, t, color)
@@ -589,7 +645,7 @@ local function setup()
 
 		local _, tBody = card(row, "Triggerbot", cfg.trig.enabled, function(v) cfg.trig.enabled = v; if syncBtns then syncBtns() end end)
 		slider(tBody, "Reaction", 0, 500, cfg.trig.react, 1, function(v) return v .. " ms" end, function(v) cfg.trig.react = v end)
-		text(tBody, "Holds mouse button while crosshair is on target.")
+		text(tBody, "Lower = faster clicks. 0 = instant, 500 = slow.")
 	end
 
 	pages.Movement = function()
@@ -635,6 +691,7 @@ local function setup()
 		end
 		pages[name]()
 		deferT(function()
+			if not running then return end
 			content.CanvasSize = UDim2.fromOffset(0, content.UIListLayout.AbsoluteContentSize.Y + 10)
 		end)
 	end
@@ -710,7 +767,7 @@ local function setup()
 			px2, py2 = i.Position.X, i.Position.Y
 			lockMoved = false
 		end)
-		UIS.InputChanged:Connect(function(i)
+		track(UIS.InputChanged:Connect(function(i)
 			if not lockIn then return end
 			local tp = i.UserInputType
 			if tp == Enum.UserInputType.Touch then
@@ -729,8 +786,8 @@ local function setup()
 			local vp = cam.ViewportSize
 			tx = math.clamp(tx + x, 0, math.max(vp.X - 92, 0))
 			ty = math.clamp(ty + y, 0, math.max(vp.Y - 92, 0))
-		end)
-		UIS.InputEnded:Connect(function(i)
+		end))
+		track(UIS.InputEnded:Connect(function(i)
 			if not lockIn then return end
 			local tp = i.UserInputType
 			if tp == Enum.UserInputType.Touch then
@@ -743,7 +800,7 @@ local function setup()
 				cfg.aim.on = not cfg.aim.on
 				syncLock()
 			end
-		end)
+		end))
 		syncLock()
 	end
 
@@ -778,7 +835,8 @@ local function setup()
 	addBtn("ESP", function() return cfg.vis.btn end, function() return cfg.vis.esp end, function(v) cfg.vis.esp = v end)
 
 	if mobile then
-		RunService.RenderStepped:Connect(function()
+		track(RunService.RenderStepped:Connect(function()
+			if not running or not lock then return end
 			if math.abs(tx - lx) < 0.4 and math.abs(ty - ly) < 0.4 then
 				lx, ly = tx, ty
 			else
@@ -786,7 +844,7 @@ local function setup()
 				ly = ly + (ty - ly) * 0.3
 			end
 			lock.Position = UDim2.fromOffset(lx, ly)
-		end)
+		end))
 	end
 
 	local espUI = mk("ScreenGui", { Name = "aim_esp", IgnoreGuiInset = true, ResetOnSpawn = false, DisplayOrder = 10 })
@@ -814,17 +872,15 @@ local function setup()
 		return e
 	end
 
-	Players.PlayerRemoving:Connect(function(p)
+	track(Players.PlayerRemoving:Connect(function(p)
 		if pool[p] then
 			pcall(function()
 				if pool[p].root then pool[p].root:Destroy() end
 			end)
 			pool[p] = nil
 		end
-	end)
+	end))
 
-	-- ESP: WorldToViewportPoint (БЕЗ GuiInset!) — совместимо с ScreenGui IgnoreGuiInset=true.
-	-- Box от макушки (Head + Size/2) до ступни (RightFoot / Right Leg / LowerTorso).
 	local function findFoot(ch)
 		return ch:FindFirstChild("RightFoot")
 			or ch:FindFirstChild("Right Leg")
@@ -835,6 +891,7 @@ local function setup()
 	end
 
 	local function esp()
+		if not running then return end
 		if not cfg.vis.esp or not cam then
 			for _, e in pairs(pool) do e.root.Visible = false end
 			return
@@ -879,46 +936,38 @@ local function setup()
 		end
 	end
 
-	local pressing = false
-	local onSince
+	local lastClick = 0
 
-	local function releaseMouse()
-		if not pressing then return end
-		pressing = false
-		if hasMouseRelease then pcall(mouse1release) end
+	local function doClick()
+		if hasMouseClick then
+			pcall(mouse1click)
+		elseif hasMousePress and hasMouseRelease then
+			pcall(mouse1press)
+			deferT(function()
+				waitT(0.03)
+				pcall(mouse1release)
+			end)
+		end
 	end
 
 	local function trig()
-		if not cfg.trig.enabled then
-			releaseMouse()
-			return
-		end
+		if not running then return end
+		if not cfg.trig.enabled then return end
 		if not cam then return end
-		if not hasMousePress and not hasMouseClick then return end
+		if not hasMouseClick and not (hasMousePress and hasMouseRelease) then return end
+
 		tpr.FilterDescendantsInstances = lp.Character and { lp.Character } or {}
 		local hit = WS:Raycast(cam.CFrame.Position, cam.CFrame.LookVector * 1200, tpr)
 		local p = hit and Players:GetPlayerFromCharacter(hit.Instance:FindFirstAncestorOfClass("Model"))
 		local ok = p and p ~= lp and not (cfg.aim.team and same(p))
-		local hh = hum()
-		if ok and not hh then ok = false end
-		if ok then
-			onSince = onSince or os.clock()
-			if not pressing and (os.clock() - onSince) * 1000 >= cfg.trig.react then
-				if hasMousePress then
-					pcall(mouse1press)
-					pressing = true
-				elseif hasMouseClick then
-					pcall(mouse1click)
-					pressing = true
-					deferT(function()
-						waitT(0.05)
-						releaseMouse()
-					end)
-				end
-			end
-		else
-			onSince = nil
-			releaseMouse()
+		if ok and not hum() then ok = false end
+		if not ok then return end
+
+		local now = os.clock()
+		local interval = math.max(cfg.trig.react, 10) / 1000
+		if now - lastClick >= interval then
+			lastClick = now
+			doClick()
 		end
 	end
 
@@ -935,6 +984,7 @@ local function setup()
 	local baseSpeed, savedVel, stuckOn
 
 	local function moveTick()
+		if not running then return end
 		local h, ch = hum()
 		if not h then
 			stuckOn = nil
@@ -973,6 +1023,7 @@ local function setup()
 	end
 
 	local function airJump()
+		if not running then return end
 		if not cfg.move.jumpEnabled or not cfg.move.infjump or cfg.move.stuck then return end
 		local h, ch = hum()
 		if not h then return end
@@ -986,13 +1037,14 @@ local function setup()
 		h:ChangeState(Enum.HumanoidStateType.Jumping)
 	end
 
-	lp.CharacterAdded:Connect(function()
+	track(lp.CharacterAdded:Connect(function()
 		baseSpeed = nil
 		stuckOn = nil
 		savedVel = nil
-	end)
+	end))
 
-	UIS.InputBegan:Connect(function(i)
+	track(UIS.InputBegan:Connect(function(i)
+		if not running then return end
 		if i.KeyCode == Enum.KeyCode.Space then
 			airJump()
 		end
@@ -1007,17 +1059,19 @@ local function setup()
 				cfg.aim.on = true
 			end
 		end
-	end)
+	end))
 
-	UIS.InputEnded:Connect(function(i)
+	track(UIS.InputEnded:Connect(function(i)
+		if not running then return end
 		if not mobile and i.KeyCode == Enum.KeyCode.C then cfg.aim.on = false end
-	end)
+	end))
 
-	WS:GetPropertyChangedSignal("CurrentCamera"):Connect(function() cam = WS.CurrentCamera end)
+	track(WS:GetPropertyChangedSignal("CurrentCamera"):Connect(function() cam = WS.CurrentCamera end))
 
 	spawnT(function()
-		while true do
+		while running do
 			waitT(0.12)
+			if not running then break end
 			if lock then syncLock() end
 			syncBtns()
 		end
@@ -1025,25 +1079,30 @@ local function setup()
 
 	pcall(function()
 		RunService:BindToRenderStep("aimMain", Enum.RenderPriority.Camera.Value + 10, function(dt)
+			if not running then return end
 			tick(dt)
 			drawRing()
 		end)
 	end)
 
 	pcall(function()
-		RunService:BindToRenderStep("aimEsp", Enum.RenderPriority.Camera.Value + 11, esp)
+		RunService:BindToRenderStep("aimEsp", Enum.RenderPriority.Camera.Value + 11, function()
+			if not running then return end
+			esp()
+		end)
 	end)
 
-	RunService.RenderStepped:Connect(trig)
-	RunService.Heartbeat:Connect(moveTick)
+	track(RunService.RenderStepped:Connect(trig))
+	track(RunService.Heartbeat:Connect(moveTick))
 
 	show("Combat")
 	syncBtns()
 end
 
 spawnT(function()
-	while true do
+	while running do
 		waitT(1)
+		if not running then break end
 		if not lp then lp = Players.LocalPlayer end
 		if not cam then cam = WS.CurrentCamera end
 		local up = lp and lp.PlayerGui
