@@ -42,12 +42,14 @@ log("start | mobile:", mobile, "| parent:", core and core:GetFullName() or "none
 local hasMousePress = type(mouse1press) == "function"
 local hasMouseRelease = type(mouse1release) == "function"
 local hasMouseClick = type(mouse1click) == "function"
-log("triggerbot | mouse1press:", hasMousePress, "| mouse1release:", hasMouseRelease, "| mouse1click:", hasMouseClick)
+
+local VIM
+pcall(function() VIM = game:GetService("VirtualInputManager") end)
+log("triggerbot | mouse1press:", hasMousePress, "| mouse1release:", hasMouseRelease, "| mouse1click:", hasMouseClick, "| VIM:", VIM ~= nil)
 
 pcall(function() RunService:UnbindFromRenderStep("aimMain") end)
 pcall(function() RunService:UnbindFromRenderStep("aimEsp") end)
 
--- === состояние для полной выгрузки ===
 local running = true
 local conns = {}
 local guis = {}
@@ -57,21 +59,20 @@ local function track(c)
 	return c
 end
 
+local diagGui -- forward decl для doUnload
+
 local function doUnload()
 	if not running then return end
 	running = false
 
-	-- 1. отключить все соединения
 	for i = 1, #conns do
 		pcall(function() conns[i]:Disconnect() end)
 	end
 	conns = {}
 
-	-- 2. снять render steps
 	pcall(function() RunService:UnbindFromRenderStep("aimMain") end)
 	pcall(function() RunService:UnbindFromRenderStep("aimEsp") end)
 
-	-- 3. уничтожить все GUI
 	for i = 1, #guis do
 		pcall(function() guis[i]:Destroy() end)
 	end
@@ -98,7 +99,7 @@ if core then
 	end)
 end
 
-local diagGui = Instance.new("ScreenGui")
+diagGui = Instance.new("ScreenGui")
 diagGui.Name = "aim_diag"
 diagGui.IgnoreGuiInset = true
 diagGui.ResetOnSpawn = false
@@ -410,7 +411,6 @@ local function setup()
 		b.Name = t
 	end
 
-	-- === UNLOAD button внизу левой панели ===
 	local unloadBtn = mk("TextButton", {
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.new(0, 8, 1, -8),
@@ -911,7 +911,7 @@ local function setup()
 					if topOn and botOn and topVP.Z > 0 and botVP.Z > 0 then
 						local bh = math.abs(topVP.Y - botVP.Y)
 						local bw = bh * 0.55
-						if bh > 8 and bw > 3 then
+						if bh > 4 and bw > 2 then
 							local bx = topVP.X - bw * 0.5
 							local by = math.min(topVP.Y, botVP.Y)
 
@@ -939,6 +939,28 @@ local function setup()
 	local lastClick = 0
 
 	local function doClick()
+		-- 1) тул в руках — Activate (не трогает touch UI)
+		local ch = lp.Character
+		local tool = ch and ch:FindFirstChildOfClass("Tool")
+		if tool then
+			local ok = pcall(function() tool:Activate() end)
+			if ok then return end
+		end
+
+		-- 2) VIM в top-center (не пересекается с джойстиком/прыжком)
+		if VIM and cam then
+			local vp = cam.ViewportSize
+			local cx = math.floor(vp.X * 0.5)
+			local cy = math.floor(vp.Y * 0.10)
+			pcall(function() VIM:SendMouseButtonEvent(cx, cy, 0, true, game, 0) end)
+			deferT(function()
+				waitT(0.02)
+				pcall(function() VIM:SendMouseButtonEvent(cx, cy, 0, false, game, 0) end)
+			end)
+			return
+		end
+
+		-- 3) fallback
 		if hasMouseClick then
 			pcall(mouse1click)
 		elseif hasMousePress and hasMouseRelease then
@@ -954,7 +976,7 @@ local function setup()
 		if not running then return end
 		if not cfg.trig.enabled then return end
 		if not cam then return end
-		if not hasMouseClick and not (hasMousePress and hasMouseRelease) then return end
+		if not VIM and not hasMouseClick and not (hasMousePress and hasMouseRelease) then return end
 
 		tpr.FilterDescendantsInstances = lp.Character and { lp.Character } or {}
 		local hit = WS:Raycast(cam.CFrame.Position, cam.CFrame.LookVector * 1200, tpr)
