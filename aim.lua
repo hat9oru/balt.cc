@@ -42,10 +42,7 @@ log("start | mobile:", mobile, "| parent:", core and core:GetFullName() or "none
 local hasMousePress = type(mouse1press) == "function"
 local hasMouseRelease = type(mouse1release) == "function"
 local hasMouseClick = type(mouse1click) == "function"
-
-local VIM
-pcall(function() VIM = game:GetService("VirtualInputManager") end)
-log("triggerbot | mouse1press:", hasMousePress, "| mouse1release:", hasMouseRelease, "| mouse1click:", hasMouseClick, "| VIM:", VIM ~= nil)
+log("triggerbot | mouse1press:", hasMousePress, "| mouse1release:", hasMouseRelease, "| mouse1click:", hasMouseClick)
 
 pcall(function() RunService:UnbindFromRenderStep("aimMain") end)
 pcall(function() RunService:UnbindFromRenderStep("aimEsp") end)
@@ -59,7 +56,7 @@ local function track(c)
 	return c
 end
 
-local diagGui -- forward decl для doUnload
+local diagGui
 
 local function doUnload()
 	if not running then return end
@@ -939,7 +936,7 @@ local function setup()
 	local lastClick = 0
 
 	local function doClick()
-		-- 1) тул в руках — Activate (не трогает touch UI)
+		-- 1) Tool:Activate — самый чистый, не трогает touch UI
 		local ch = lp.Character
 		local tool = ch and ch:FindFirstChildOfClass("Tool")
 		if tool then
@@ -947,23 +944,14 @@ local function setup()
 			if ok then return end
 		end
 
-		-- 2) VIM в top-center (не пересекается с джойстиком/прыжком)
-		if VIM and cam then
-			local vp = cam.ViewportSize
-			local cx = math.floor(vp.X * 0.5)
-			local cy = math.floor(vp.Y * 0.10)
-			pcall(function() VIM:SendMouseButtonEvent(cx, cy, 0, true, game, 0) end)
-			deferT(function()
-				waitT(0.02)
-				pcall(function() VIM:SendMouseButtonEvent(cx, cy, 0, false, game, 0) end)
-			end)
+		-- 2) mouse1click — executor-функция (на мобиле tap без переключения режима)
+		if hasMouseClick then
+			pcall(mouse1click)
 			return
 		end
 
-		-- 3) fallback
-		if hasMouseClick then
-			pcall(mouse1click)
-		elseif hasMousePress and hasMouseRelease then
+		-- 3) press/release — только если mouse1click нет
+		if hasMousePress and hasMouseRelease then
 			pcall(mouse1press)
 			deferT(function()
 				waitT(0.03)
@@ -976,7 +964,7 @@ local function setup()
 		if not running then return end
 		if not cfg.trig.enabled then return end
 		if not cam then return end
-		if not VIM and not hasMouseClick and not (hasMousePress and hasMouseRelease) then return end
+		if not hasMouseClick and not (hasMousePress and hasMouseRelease) then return end
 
 		tpr.FilterDescendantsInstances = lp.Character and { lp.Character } or {}
 		local hit = WS:Raycast(cam.CFrame.Position, cam.CFrame.LookVector * 1200, tpr)
