@@ -22260,10 +22260,7 @@ end
 function AimShootButton.destroy(existing)
 	if type(existing) ~= "table" then return end
 	existing.alive, existing.pressed = false, false
-	if existing.loopCoroutine and existing.task then
-		pcall(existing.task.cancel, existing.loopCoroutine)
-	end
-	for _, field in ipairs({"inputChanged", "inputEnded", "inputEnded2", "inputBegan"}) do
+	for _, field in ipairs({"inputChanged", "inputChanged2", "inputEnded", "inputEnded2", "inputEnded3", "inputBegan", "render"}) do
 		local connection = existing[field]
 		if connection then pcall(function() connection:Disconnect() end) end
 	end
@@ -22274,7 +22271,17 @@ function AimShootButton.destroy(existing)
 end
 
 function AimShootButton.fire(context)
-	local shot = context.environment.getgenv().__staticShotMurder
+	local globals = context.environment.getgenv()
+	local fast = globals.__staticShotFast
+
+	-- The button uses the instant path: the pistol is grabbed and the bullet is
+	-- sent on the very same frame instead of waiting for the normal shot queue.
+	if type(fast) == "function" then
+		local ok, sent = context.environment.pcall(fast)
+		if ok and sent then return true end
+	end
+
+	local shot = globals.__staticShotMurder
 
 	if type(shot) ~= "function" then return false end
 
@@ -22308,9 +22315,10 @@ function AimShootButton.build(context, settings)
 	if not holder then return false end
 
 	local state = {context = context, environment = environment, globals = globals,
-		task = environment.task, alive = true, loopCoroutine = nil, painted = nil,
-		gui = nil, button = nil, stroke = nil, label = nil,
-		inputBegan = nil, inputChanged = nil, inputEnded = nil, inputEnded2 = nil}
+		task = environment.task, alive = true, painted = nil,
+		gui = nil, button = nil, stroke = nil, label = nil, render = nil,
+		inputBegan = nil, inputChanged = nil, inputChanged2 = nil,
+		inputEnded = nil, inputEnded2 = nil, inputEnded3 = nil}
 
 	local gui = environment.Instance.new("ScreenGui")
 	gui.Name, gui.ResetOnSpawn, gui.IgnoreGuiInset = "StaticShootButton", false, true
@@ -22322,14 +22330,6 @@ function AimShootButton.build(context, settings)
 	button.BackgroundColor3, button.BackgroundTransparency = environment.Color3.fromRGB(20, 23, 30), 0.24
 	button.BorderSizePixel, button.Size, button.ZIndex = 0, environment.UDim2.fromOffset(76, 76), 2
 	button.AnchorPoint, button.Active, button.Selectable = environment.Vector2.new(0.5, 0.5), true, false
-
-	local saved = settings.shootBtnPos
-	if type(saved) == "table" and tonumber(saved.x) and tonumber(saved.y) then
-		button.Position = environment.UDim2.fromScale(saved.x, saved.y)
-	else
-		button.Position = environment.UDim2.fromScale(0.885, 0.66)
-	end
-
 	button.Parent = gui
 
 	local corner = environment.Instance.new("UICorner")
@@ -22349,55 +22349,117 @@ function AimShootButton.build(context, settings)
 
 	state.gui, state.button, state.stroke, state.label = gui, button, stroke, label
 
-	local function insetY()
-		local inset = environment.Vector2.new(0, 36)
-		pcall(function() inset = guiService:GetGuiInset() end)
-		return inset.Y
-	end
+	-- The button lives in pixel space. The drag only ever uses the delta between
+	-- two consecutive pointer samples, so the GUI inset, the top bar and the
+	-- difference between touch and mouse coordinates cancel out completely:
+	-- the square follows the finger exactly, on every device.
+	local SIZE = 76
+	local EDGE = 2
 
-	local function pointer(input)
-		return environment.Vector2.new(input.Position.X, input.Position.Y - insetY())
-	end
-
-	local pressed, moved, origin = false, false, nil
-
-	local function stopLoop()
-		if state.loopCoroutine then
-			pcall(state.task.cancel, state.loopCoroutine)
-			state.loopCoroutine = nil
+	local function screenSize()
+		local camera = environment.workspace.CurrentCamera
+		if camera then
+			local viewport = camera.ViewportSize
+			if viewport and viewport.X > 0 and viewport.Y > 0 then return viewport end
 		end
+		return gui.AbsoluteSize
 	end
+
+	-- Keep the whole square visible: the centre may never leave the screen.
+	local function clampToScreen(position, size)
+		local half = SIZE * 0.5
+		local maxX = math.max(size.X - half - EDGE, half)
+		local maxY = math.max(size.Y - half - EDGE, half)
+		return environment.Vector2.new(
+			math.clamp(position.X, half + EDGE, maxX),
+			math.clamp(position.Y, half + EDGE, maxY))
+	end
+
+	-- Target and current position are kept separately so the button eases towards
+	-- the finger instead of snapping to it: smooth, but still perfectly responsive.
+	local targetPos, currentPos = nil, nil
+
+	local function applyPosition()
+		local size = screenSize()
+		local clamped = clampToScreen(targetPos, size)
+		local delta = clamped - currentPos
+
+		if delta.Magnitude < 0.5 then
+			currentPos = clamped
+		else
+			currentPos = currentPos + delta * 0.45
+		end
+
+		button.Position = environment.UDim2.fromOffset(currentPos.X - SIZE * 0.5, currentPos.Y - SIZE * 0.5)
+	end
+
+	local function placeButton(point)
+		targetPos = clampToScreen(point, screenSize())
+		if not currentPos then currentPos = targetPos end
+		applyPosition()
+	end
+
+	-- Restore the saved spot (stored as screen fractions) on the first layout.
+	local function restorePosition()
+		local size = screenSize()
+		local saved = settings.shootBtnPos
+		local point
+
+		if type(saved) == "table" and tonumber(saved.x) and tonumber(saved.y) then
+			point = environment.Vector2.new(saved.x * size.X, saved.y * size.Y)
+		else
+			point = environment.Vector2.new(size.X - SIZE * 0.5 - 24, size.Y * 0.68)
+		end
+
+		placeButton(point)
+	end
+
+	restorePosition()
+
+	local pressed, moved = false, false
+	local lastPointer = nil
 
 	local function savePosition()
-		local position = button.Position
-		settings.shootBtnPos = {x = position.X.Scale, y = position.Y.Scale}
+		local size = screenSize()
+		if not size.X or size.X <= 0 then return end
+		settings.shootBtnPos = {x = currentPos.X / size.X, y = currentPos.Y / size.Y}
 	end
 
+	-- One press is one shot: the pistol is taken and fired immediately, there is
+	-- no hold to repeat and no delay.
 	local function press(input)
-		pressed, moved, origin = true, false, pointer(input)
+		pressed, moved = true, false
+		-- The first movement event only anchors the reference point: the offset
+		-- between the GUI layer and the pointer is unknown at this moment, so it
+		-- must not be treated as a movement.
+		lastPointer = nil
+		currentPos = environment.Vector2.new(button.Position.X.Offset + SIZE * 0.5, button.Position.Y.Offset + SIZE * 0.5)
+		targetPos = currentPos
 		AimShootButton.paint(state, true)
 		AimShootButton.fire(context)
-
-		stopLoop()
-		state.loopCoroutine = state.task.spawn(function()
-			state.task.wait(0.3)
-			local ticks = 0
-
-			while state.alive and pressed and not moved and ticks < 60 do
-				ticks += 1
-				AimShootButton.fire(context)
-				state.task.wait(0.16)
-			end
-		end)
 	end
 
 	local function release()
 		pressed = false
-		stopLoop()
+		lastPointer = nil
 		AimShootButton.paint(state, false)
 
 		if moved then savePosition() end
 	end
+
+	-- Ease the square towards its target every frame: no snapping, no jitter.
+	-- The clamp runs every frame, so a window resize can never push the button
+	-- off screen either.
+	state.render = environment.runService.RenderStepped:Connect(function()
+		if not targetPos then
+			local size = screenSize()
+			local point = environment.Vector2.new(button.Position.X.Offset + SIZE * 0.5, button.Position.Y.Offset + SIZE * 0.5)
+			currentPos = clampToScreen(point, size)
+			targetPos = currentPos
+		end
+
+		applyPosition()
+	end)
 
 	state.inputBegan = button.InputBegan:Connect(function(input)
 		if input.UserInputType ~= environment.Enum.UserInputType.MouseButton1
@@ -22406,21 +22468,51 @@ function AimShootButton.build(context, settings)
 	end)
 
 	state.inputChanged = inputService.InputChanged:Connect(function(input)
-		if not pressed or moved then return end
-		if input.UserInputType ~= environment.Enum.UserInputType.MouseMovement
-			and input.UserInputType ~= environment.Enum.UserInputType.Touch then return end
-		if not origin then return end
+		if not pressed then return end
+		if input.UserInputType ~= environment.Enum.UserInputType.MouseMovement then return end
 
-		local point = pointer(input)
-		if (point - origin).Magnitude < 10 then return end
+		local point = environment.Vector2.new(input.Position.X, input.Position.Y)
+
+		-- Anchor on the first sample, then only the movement between two samples
+		-- is used. Any constant offset between the GUI layer and the pointer
+		-- (top bar, inset) disappears, so the square can never jump away.
+		if not lastPointer then
+			lastPointer = point
+			return
+		end
+
+		local step = point - lastPointer
+		lastPointer = point
+
+		if not moved and step.Magnitude < 1.5 then return end
 
 		moved = true
-		stopLoop()
+		targetPos = targetPos + step
+	end)
 
-		local viewport = gui.AbsoluteSize
-		button.Position = environment.UDim2.fromScale(
-			math.clamp(point.X / math.max(viewport.X, 1), 0.03, 0.97),
-			math.clamp(point.Y / math.max(viewport.Y, 1), 0.03, 0.97))
+	-- Touch is captured by the GUI, so the button's own InputChanged is the
+	-- reliable source for it. Its coordinates already live in the GUI layer,
+	-- which is exactly the space the button is positioned in. Only Touch is
+	-- handled here: MouseMovement is taken from UserInputService, and counting
+	-- both would move the square twice as fast.
+	state.inputChanged2 = button.InputChanged:Connect(function(input)
+		if not pressed then return end
+		if input.UserInputType ~= environment.Enum.UserInputType.Touch then return end
+
+		local point = environment.Vector2.new(input.Position.X, input.Position.Y)
+
+		if not lastPointer then
+			lastPointer = point
+			return
+		end
+
+		local step = point - lastPointer
+		lastPointer = point
+
+		if not moved and step.Magnitude < 1.5 then return end
+
+		moved = true
+		targetPos = targetPos + step
 	end)
 
 	state.inputEnded = inputService.InputEnded:Connect(function(input)
@@ -22428,6 +22520,14 @@ function AimShootButton.build(context, settings)
 		if input.UserInputType ~= environment.Enum.UserInputType.MouseButton1
 			and input.UserInputType ~= environment.Enum.UserInputType.Touch
 			and input.UserInputType ~= environment.Enum.UserInputType.MouseButton2 then return end
+		release()
+	end)
+
+	-- A finger that leaves the window can miss the service level release, so
+	-- the button's own release is used as a second trigger for touch.
+	state.inputEnded3 = button.InputEnded:Connect(function(input)
+		if not pressed then return end
+		if input.UserInputType ~= environment.Enum.UserInputType.Touch then return end
 		release()
 	end)
 
@@ -22484,6 +22584,98 @@ function SheriffRuntime.install(context)
 			return true
 		end
 		shoot(character, true)
+		return true
+	end
+
+	-- Instant shot used by the on-screen Shoot button: grabs the pistol without
+	-- waiting for the equip animation and sends the bullet on the same frame,
+	-- bypassing the confidence threshold of the normal (queued) shot.
+	globals.__staticShotFast = function()
+		local player, character = SheriffRuntime.target(context)
+		if not player or not character or not allowed(character) then return false end
+
+		local own = context.player.Character
+		if not own then return false end
+
+		-- Take the pistol right away: reparenting is instant, EquipTool is not.
+		if not own:FindFirstChild("Gun") then
+			local backpack = context.player:FindFirstChild("Backpack")
+			local gun = backpack and backpack:FindFirstChild("Gun")
+			if not gun then return false end
+			pcall(function() gun.Parent = own end)
+			if not own:FindFirstChild("Gun") then
+				local humanoid = own:FindFirstChildOfClass("Humanoid")
+				if humanoid then pcall(function() humanoid:EquipTool(gun) end) end
+			end
+		end
+
+		-- The gun is in hand now. If its Shoot remote is not ready yet, give the
+		-- tool a couple of frames to set itself up, but never wait for long.
+		local gun = own:FindFirstChild("Gun")
+		if gun and not gun:FindFirstChild("Shoot") then
+			local started = environment.os.clock()
+			while environment.os.clock() - started < 0.05 and not gun:FindFirstChild("Shoot") do
+				context.runService.Heartbeat:Wait()
+			end
+		end
+
+		local state = rawget(globals, "__staticAimX")
+		if type(state) ~= "table" or type(state.send) ~= "function" then
+			shoot(character, true)
+			return true
+		end
+
+		local now = environment.os.clock()
+
+		-- No cooldown here: the button fires the moment it is pressed. One press
+		-- is one bullet, the game itself decides whether a gun can fire again.
+
+		-- Force the murderer as the tracked target so the plan is built for it.
+		if state.target ~= character then
+			state.forced, state.forcedAt = character, now
+		end
+
+		local ok, plan = pcall(state.plan, character, not settings.wallbang)
+		if not ok or not plan then
+			-- The tracker may not have enough samples yet (first press of a round).
+			-- Wait a couple of frames for the history to fill instead of faking
+			-- it: a fake history would poison the prediction of the normal aim.
+			local started = now
+			while state.alive and environment.os.clock() - started < 0.12 do
+				context.runService.Heartbeat:Wait()
+				ok, plan = pcall(state.plan, character, not settings.wallbang)
+				if ok and plan then break end
+			end
+		end
+
+		if not ok or not plan then
+			-- No prediction available: fire straight at the murderer anyway, so
+			-- the button always shoots right now instead of waiting for the
+			-- normal queued shot.
+			local root = character:FindFirstChild("HumanoidRootPart")
+			local head = character:FindFirstChild("Head")
+			local ownRoot = own:FindFirstChild("HumanoidRootPart")
+			local aimAt = head or root
+			local gun2 = own:FindFirstChild("Gun")
+			local shootRemote = gun2 and gun2:FindFirstChild("Shoot")
+			local attachment = ownRoot and ownRoot:FindFirstChild("GunRaycastAttachment")
+			local muzzle = attachment and attachment.WorldPosition or ownRoot and ownRoot.Position
+
+			if aimAt and muzzle and shootRemote then
+				local from = muzzle
+				local to = aimAt.Position
+				local hook = globals.__staticAim
+				if hook then hook.bypass = true end
+				pcall(function()
+					shootRemote:FireServer(environment.CFrame.new(from, to), environment.CFrame.new(to))
+				end)
+				if hook then hook.bypass = false end
+			end
+			return true
+		end
+
+		-- Send on this frame: no score threshold, no queue, no waiting.
+		state.send(plan, character, "manual", now)
 		return true
 	end
 	context.connect(context.runService.RenderStepped, function()
