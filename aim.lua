@@ -160,8 +160,12 @@ function Layout.create()
 			{name = "Music", icon = "music", group = "Fun", desc = "Play your songs in the round", subs = {
 				{key = "Boombox", label = "Boombox", Columns = 1},
 				{key = "Sounds", label = "Sounds", Columns = 1},
+				
 			}},
+			
+			
 			{name = "Mobile", icon = "smartphone", group = "System", desc = "On-screen buttons for touch"},
+			
 			{name = "Settings", icon = "settings", group = "System", desc = "Menu, configs and performance", subs = {
 				{key = "UI", label = "Interface"},
 				{key = "Configs", label = "Configs"},
@@ -304,7 +308,7 @@ function Layout.create()
 		["Performance"] = "cpu",
 		["Player"] = "disc-3",
 		["Presets"] = "sparkles",
-		["Pulse Hub"] = "info",
+		["Static Hub"] = "info",
 		["Scenes"] = "clapperboard",
 		["Screen"] = "scan",
 		["Server"] = "server",
@@ -408,7 +412,7 @@ local PulseWindow = {}
 
 function PulseWindow.create(environment, nova, layout, parent)
 	local window = nova:CreateWindow({
-		Title = "Pulse Hub", Subtitle = "Murder Mystery 2", Footer = "v1.1", Initial = "P",
+		Title = "Static Hub", Subtitle = "Murder Mystery 2", Footer = "v1.1", Initial = "P",
 		GuiName = "PulseMM2Hub", Parent = parent, Logo = "rbxassetid://102076719808486",
 		LogoGlow = environment.Color3.fromRGB(255, 122, 26), Accent = environment.Color3.fromRGB(214, 68, 88),
 		Size = environment.Vector2.new(812, 584), Key = environment.Enum.KeyCode.LeftControl,
@@ -791,7 +795,7 @@ function PulseTab.create(environment, hub, name, icon, context)
 		bindHandle(nativeHandle, options.Text)
 		track(nativeHandle)
 		environment.pcall(function()
-			table.insert(environment.getgenv().__pulseNovaLangHooks, function() nativeHandle:SetOptions(mappedOptions(options.Options)) end)
+			table.insert(environment.getgenv().__staticNovaLangHooks, function() nativeHandle:SetOptions(mappedOptions(options.Options)) end)
 		end)
 		local handle = {Row = nativeHandle and nativeHandle.Row or nil, Get = function() return value end}
 		handle.SetSilent = function(nextValue)
@@ -885,7 +889,7 @@ function PulseTab.create(environment, hub, name, icon, context)
 		end)
 		if nativeHandle and nativeHandle.SetText then
 			environment.pcall(function()
-				table.insert(environment.getgenv().__pulseNovaLangHooks, function() nativeHandle:SetText(translator.tr(options.Text)) end)
+				table.insert(environment.getgenv().__staticNovaLangHooks, function() nativeHandle:SetText(translator.tr(options.Text)) end)
 			end)
 		end
 		track(nativeHandle)
@@ -896,7 +900,7 @@ function PulseTab.create(environment, hub, name, icon, context)
 		local key = not options.NoSave and configKey(options.Text) or nil
 		local value = options.Default
 		local previous = saved(key, "string")
-		if type(previous) == "string" and previous ~= "" then value = environment.getgenv().__pulseBindFromName(previous) or value end
+		if type(previous) == "string" and previous ~= "" then value = environment.getgenv().__staticBindFromName(previous) or value end
 		local current, nativeHandle = currentSection(), nil
 		environment.pcall(function()
 			nativeHandle = current:Keybind({Text = translate(options.Text), Default = value, Indent = indent(), Active = options.Active, Callback = function(nextValue)
@@ -911,7 +915,7 @@ function PulseTab.create(environment, hub, name, icon, context)
 		if key then
 			context.defaults[key] = environment.typeof(options.Default) == "EnumItem" and options.Default.Name or ""
 			context.setters[key] = function(name)
-				local nextValue = type(name) == "string" and name ~= "" and environment.getgenv().__pulseBindFromName(name) or nil
+				local nextValue = type(name) == "string" and name ~= "" and environment.getgenv().__staticBindFromName(name) or nil
 				value = nextValue
 				store(key, nextValue and nextValue.Name or "")
 				if nativeHandle then environment.pcall(nativeHandle.Set, nativeHandle, nextValue) end
@@ -934,7 +938,7 @@ function PulseTab.create(environment, hub, name, icon, context)
 		local bindKey = configKey(options.Text .. " Bind")
 		local binding = options.Bind
 		local savedBinding = saved(bindKey, "string")
-		if type(savedBinding) == "string" and savedBinding ~= "" then binding = environment.getgenv().__pulseBindFromName(savedBinding) or binding end
+		if type(savedBinding) == "string" and savedBinding ~= "" then binding = environment.getgenv().__staticBindFromName(savedBinding) or binding end
 		local current, nativeHandle = currentSection(), nil
 		environment.pcall(function()
 			nativeHandle = current:Toggle({Text = translate(options.Text), Default = value, Tooltip = options.Tooltip and translate(options.Tooltip) or nil,
@@ -971,7 +975,7 @@ function PulseTab.create(environment, hub, name, icon, context)
 		if key then context.setters[key] = function(nextValue) handle.Set(nextValue and true or false) end end
 		context.defaults[bindKey] = environment.typeof(options.Bind) == "EnumItem" and options.Bind.Name or ""
 		context.setters[bindKey] = function(name)
-			local nextBinding = type(name) == "string" and name ~= "" and environment.getgenv().__pulseBindFromName(name) or nil
+			local nextBinding = type(name) == "string" and name ~= "" and environment.getgenv().__staticBindFromName(name) or nil
 			if nativeHandle and nativeHandle.Bind and nativeHandle.Bind.Set then
 				environment.pcall(nativeHandle.Bind.Set, nextBinding)
 				return
@@ -1471,10 +1475,10 @@ function InputBindings.install(environment, inputService)
 		MouseButton2 = enum.UserInputType.MouseButton2,
 		MouseButton3 = enum.UserInputType.MouseButton3,
 	}
-	globals.__pulseBindMouse = mouse
-	globals.__pulseBindCapture = false
+	globals.__staticBindMouse = mouse
+	globals.__staticBindCapture = false
 
-	globals.__pulseBindFromName = function(name)
+	globals.__staticBindFromName = function(name)
 		if type(name) ~= "string" or name == "" then return nil end
 		if mouse[name] then return mouse[name] end
 
@@ -1483,11 +1487,11 @@ function InputBindings.install(environment, inputService)
 		return nil
 	end
 
-	globals.__pulseBindReady = function()
-		return not globals.__pulseBindCapture and not inputService:GetFocusedTextBox()
+	globals.__staticBindReady = function()
+		return not globals.__staticBindCapture and not inputService:GetFocusedTextBox()
 	end
 
-	globals.__pulseBindHit = function(input, binding)
+	globals.__staticBindHit = function(input, binding)
 		if environment.typeof(binding) ~= "EnumItem" then return false end
 		if binding.EnumType == enum.UserInputType then return input.UserInputType == binding end
 		return binding.EnumType == enum.KeyCode and input.UserInputType == enum.UserInputType.Keyboard
@@ -1514,13 +1518,20 @@ function Movement.install(context)
 
 	section:ToggleKey({
 		Text = "Infinite Jumps", Default = context.defaults.infJump,
-		Bind = environment.getgenv().__pulseBindFromName(settings.infJumpKey or ""),
+		Bind = environment.getgenv().__staticBindFromName(settings.infJumpKey or ""),
 		Callback = function(enabled) settings.infJump = not not enabled end,
 		OnBind = function(key) settings.infJumpKey = key and key.Name or "" end,
 	})
 	section:Toggle({
 		Text = "Anti-Fling", Default = context.defaults.antiFling,
-		Callback = function(enabled) settings.antiFling = not not enabled end,
+		Callback = function(enabled)
+			settings.antiFling = not not enabled
+			if enabled then
+				globals.__pulsePushImmunity = true
+			else
+				globals.__pulsePushImmunity = nil
+			end
+		end,
 	})
 end
 
@@ -1567,7 +1578,7 @@ function Movement.installNoclip(context)
 		end
 	end
 	local globals = environment.getgenv()
-	globals.__pulseNoclipParts = collect
+	globals.__staticNoclipParts = collect
 	context.connect(context.runService.Stepped, function()
 		if not settings.on then return end
 		local current = context.player.Character
@@ -1595,11 +1606,11 @@ function Movement.installNoclip(context)
 		end
 	end)
 	local toggle = context.section:ToggleKey({Text = "No Clip", Default = context.defaults.noclip.on,
-		Bind = globals.__pulseBindFromName(settings.key or ""), Callback = function(enabled)
+		Bind = globals.__staticBindFromName(settings.key or ""), Callback = function(enabled)
 			settings.on = not not enabled
 			if not enabled then restore() end
 		end, OnBind = function(key) settings.key = key and key.Name or "" end})
-	globals.__pulseSetNoclip = function(enabled)
+	globals.__staticSetNoclip = function(enabled)
 		enabled = not not enabled
 		if toggle and toggle.Set then
 			pcall(toggle.Set, enabled)
@@ -1608,7 +1619,7 @@ function Movement.installNoclip(context)
 		settings.on = enabled
 		if not enabled then restore() end
 	end
-	globals.__pulseGetNoclip = function() return not not settings.on end
+	globals.__staticGetNoclip = function() return not not settings.on end
 
 	return function()
 		settings.on = false
@@ -1622,10 +1633,10 @@ function Movement.installCameraNoclip(context)
 	local configuration = context.configuration
 	if type(configuration.noclipCam) ~= "table" then configuration.noclipCam = {on = false, key = ""} end
 	local settings = configuration.noclipCam
-	local state = rawget(globals, "__pulseNoclipCam")
+	local state = rawget(globals, "__staticNoclipCam")
 	if type(state) ~= "table" then
 		state = {on = false, hooked = false}
-		globals.__pulseNoclipCam = state
+		globals.__staticNoclipCam = state
 	end
 	local previousMode
 
@@ -1666,7 +1677,7 @@ function Movement.installCameraNoclip(context)
 		local original
 		local ok = pcall(function()
 			original = environment.hookfunction(popper, function(origin, distance, focus)
-				local current = rawget(globals, "__pulseNoclipCam")
+				local current = rawget(globals, "__staticNoclipCam")
 				if current and current.on and current.mode == "hook" and type(distance) == "number" then
 					return distance
 				end
@@ -1700,7 +1711,7 @@ function Movement.installCameraNoclip(context)
 	end
 
 	context.section:ToggleKey({Text = "No Clip Camera", Default = context.defaults.noclipCam and context.defaults.noclipCam.on,
-		Bind = globals.__pulseBindFromName(settings.key or ""), Callback = function(enabled)
+		Bind = globals.__staticBindFromName(settings.key or ""), Callback = function(enabled)
 			settings.on = not not enabled
 			setEnabled(settings.on)
 		end, OnBind = function(key) settings.key = key and key.Name or "" end})
@@ -1714,7 +1725,7 @@ function Movement.installAntiCoin(context)
 	local coins = setmetatable({}, {__mode = "k"})
 	local characterParts = setmetatable({}, {__mode = "k"})
 	local enabled = false
-	globals.__pulseAntiCoinInfo, globals.__pulseAntiCoin = info, false
+	globals.__staticAntiCoinInfo, globals.__staticAntiCoin = info, false
 
 	local function blockCoin(part)
 		if not part:IsA("BasePart") then return end
@@ -1755,7 +1766,7 @@ function Movement.installAntiCoin(context)
 	end
 	local function setEnabled(value)
 		enabled = not not value
-		globals.__pulseAntiCoin = enabled
+		globals.__staticAntiCoin = enabled
 		if enabled then pcall(scanCoins) else restore() end
 	end
 	info.set = setEnabled
@@ -1816,7 +1827,7 @@ function Movement.installBombJump(context)
 		local power = humanoid.UseJumpPower == false
 			and math.sqrt(2 * (context.workspace.Gravity or 196.2) * math.max(humanoid.JumpHeight or 7.2, 1))
 			or math.max(humanoid.JumpPower or 50, 50)
-		globals.__pulseBombJumpUntil = math.max(tonumber(globals.__pulseBombJumpUntil) or 0, environment.os.clock() + 1.5)
+		globals.__staticBombJumpUntil = math.max(tonumber(globals.__staticBombJumpUntil) or 0, environment.os.clock() + 1.5)
 		local velocity = root.AssemblyLinearVelocity
 		root.AssemblyLinearVelocity = environment.Vector3.new(velocity.X, power, velocity.Z)
 		pcall(function() humanoid:ChangeState(environment.Enum.HumanoidStateType.Jumping) end)
@@ -1855,7 +1866,7 @@ function Movement.installBombJump(context)
 		local bomb = equip()
 		local remote = bomb and bomb:FindFirstChild("Remote")
 		if not remote then return false end
-		globals.__pulseBombJumpUntil = math.max(tonumber(globals.__pulseBombJumpUntil) or 0, environment.os.clock() + 2)
+		globals.__staticBombJumpUntil = math.max(tonumber(globals.__staticBombJumpUntil) or 0, environment.os.clock() + 2)
 		pcall(function() remote:FireServer(environment.CFrame.new(position), 50) end)
 		return true
 	end
@@ -1873,7 +1884,7 @@ function Movement.installBombJump(context)
 		environment.task.wait(0.3)
 		watch(character)
 	end)
-	globals.__pulseAutoBombJump = function()
+	globals.__staticAutoBombJump = function()
 		if busy then return end
 		busy = true
 		environment.task.spawn(function()
@@ -1893,15 +1904,15 @@ function Movement.installBombJump(context)
 	end
 	context.section:Toggle({Text = "Bomb Jump", Default = context.defaults.bombJump,
 		Callback = function(enabled) settings.bombJump = not not enabled end, Settings = function()
-			local key = globals.__pulseBindFromName(settings.bombJumpKey)
+			local key = globals.__staticBindFromName(settings.bombJumpKey)
 			context.section:Keybind({Text = "Bomb Jump", Default = key, Active = function() return busy end,
 				Callback = function(value)
 					key = value
 					settings.bombJumpKey = value and value.Name or ""
 				end})
 			context.connect(context.inputService.InputBegan, function(input)
-				if not globals.__pulseBindReady() or not globals.__pulseBindHit(input, key) then return end
-				if globals.__pulseAutoBombJump then pcall(globals.__pulseAutoBombJump) end
+				if not globals.__staticBindReady() or not globals.__staticBindHit(input, key) then return end
+				if globals.__staticAutoBombJump then pcall(globals.__staticAutoBombJump) end
 			end)
 		end})
 end
@@ -1969,7 +1980,7 @@ function Movement.installInvisibility(context)
 	local function stop()
 		if not active then return end
 		active, pending = false, false
-		pcall(function() if globals.__pulseInvis then globals.__pulseInvis.active, globals.__pulseInvis.real = false, nil end end)
+		pcall(function() if globals.__staticInvis then globals.__staticInvis.active, globals.__staticInvis.real = false, nil end end)
 		if heartbeat then
 			pcall(function() heartbeat:Disconnect() end)
 			heartbeat = nil
@@ -1994,11 +2005,11 @@ function Movement.installInvisibility(context)
 			if not active then return end
 			local valid = humanoid and root and root.Parent
 			if not valid or root.Parent ~= player.Character or humanoid.Health <= 0 then
-				if globals.__pulseInvis then globals.__pulseInvis.active, globals.__pulseInvis.real = false, nil end
+				if globals.__staticInvis then globals.__staticInvis.active, globals.__staticInvis.real = false, nil end
 				return
 			end
 			pcall(function()
-				local revert = rawget(globals, "__pulseAfRevert")
+				local revert = rawget(globals, "__staticAfRevert")
 				if revert then pcall(revert) end
 				local moving = humanoid.MoveDirection.Magnitude > 0.01
 				if not raycastParams then
@@ -2011,17 +2022,15 @@ function Movement.installInvisibility(context)
 					raycastParams.FilterDescendantsInstances = {character}
 				end
 				local grounded = workspace:Raycast(root.Position, environment.Vector3.new(0, -5, 0), raycastParams) ~= nil
-				local info = globals.__pulseInvis or {}
+				local info = globals.__staticInvis or {}
 				info.active, info.grounded = true, grounded
-				globals.__pulseInvis = info
+				globals.__staticInvis = info
 				local real = root.CFrame
 				local offset = 0
 				renderReal, lastReal = real, real
 				info.real, info.realAt = real, environment.os.clock()
-				if (tonumber(globals.__pulseInvisPause) or 0) > environment.os.clock() then return end
-				-- Keep player in place (offset = 0) so they can still pick up guns, coins, etc.
-				-- The character becomes visually invisible but stays exactly where they are.
-				root.CFrame = real * environment.CFrame.new(0, 0, 0)
+				if (tonumber(globals.__staticInvisPause) or 0) > environment.os.clock() then return end
+				root.CFrame = real * environment.CFrame.new(0, offset, 0)
 				ghostPosition, pending = root.Position, true
 			end)
 		end)
@@ -2081,60 +2090,21 @@ function Movement.installInvisibility(context)
 		end)
 	end)
 	context.section:ToggleKey({Text = "Invisible", Default = false,
-		Bind = globals.__pulseBindFromName(context.configuration.invis.key), Callback = function(enabled)
+		Bind = globals.__staticBindFromName(context.configuration.invis.key), Callback = function(enabled)
 			context.configuration.invis.on = not not enabled
 			if enabled then start() else stop() end
 		end, OnBind = function(key) context.configuration.invis.key = key and key.Name or "" end})
-	globals.__pulseSetInvis = function(enabled)
+	globals.__staticSetInvis = function(enabled)
 		enabled = not not enabled
 		if enabled == not not context.configuration.invis.on then return end
 		context.configuration.invis.on = enabled
 		if enabled then start() else stop() end
 	end
-	globals.__pulseGetInvis = function() return not not context.configuration.invis.on end
+	globals.__staticGetInvis = function() return not not context.configuration.invis.on end
 	return stop
 end
-function Movement.installGodMode(context)
-	local environment = context.environment
-	local settings = context.configuration
-	local globals, player = environment.getgenv(), context.player
-	local runService = context.runService
-	
-	local humanoid, root
-	local originalMaxHealth
-	local function enable()
-		local character = player.Character or player.CharacterAdded:WaitForChild(60):Get()
-		if not character then return end
-		humanoid = character:FindFirstChildOfClass("Humanoid")
-		root = character:FindFirstChild("HumanoidRootPart")
-		if not humanoid then return end
-		originalMaxHealth = humanoid.MaxHealth
-		-- Set to infinite health
-		pcall(function() humanoid.MaxHealth = math.huge end)
-		pcall(function() humanoid.Health = math.huge end)
-		context.connect(humanoid.HealthChanged:Connect(function(health)
-			pcall(function() humanoid.Health = math.huge end)
-		end))
-	end
-	
-	local function disable()
-		if not humanoid or not originalMaxHealth then return end
-		pcall(function() humanoid.MaxHealth = originalMaxHealth end)
-		pcall(function() humanoid.Health = math.min(originalMaxHealth, humanoid.Health) end)
-	end
-	
-	local function onCharacterAdded()
-		pcall(disable)
-		enable()
-	end
-	
-	context.connect(player.CharacterAdded:Connect(onCharacterAdded))
-	onCharacterAdded()
-	
-	return disable
-end
 
-	function Movement.installSpinAndBhop(context)
+function Movement.installSpinAndBhop(context)
 	local environment = context.environment
 	local globals, settings = environment.getgenv(), context.configuration
 	local modes = {"Smooth", "Jitter", "Backwards", "Helicopter", "Break Dance", "Top Rock", "Air Dance",
@@ -2147,7 +2117,7 @@ end
 		Tantrum = {yaw = 1.5, emote = {10714340558, 1.5}}, Robot = {yaw = 0.8, emote = {10714392151, 1.3}},
 	}
 	local animationState = {tracks = {}}
-	globals.__pulseSpinAnim = {anim = animations, sa = animationState}
+	globals.__staticSpinAnim = {anim = animations, sa = animationState}
 	local spinning, jitterTimer, jitter = false, 0, false
 	local speed, landedAt, wasGrounded, reserve, chainUntil = 0, 0, true, 0, 0
 	local sounds
@@ -2237,9 +2207,9 @@ end
 	end)
 	context.connect(context.runService.Heartbeat, function(delta)
 		if not (settings.spin and settings.spin.on) and not settings.bhop and not spinning then
-			if globals.__pulseBhopChain then
+			if globals.__staticBhopChain then
 				speed, reserve, chainUntil = 0, 0, 0
-				globals.__pulseBhopSpeed, globals.__pulseBhopChain = 0, false
+				globals.__staticBhopSpeed, globals.__staticBhopChain = 0, false
 			end
 			return
 		end
@@ -2251,7 +2221,7 @@ end
 				spinning = true
 				pcall(function()
 					humanoid.AutoRotate = false
-					if environment.os.clock() < (tonumber(globals.__pulseShotHold) or 0) then return end
+					if environment.os.clock() < (tonumber(globals.__staticShotHold) or 0) then return end
 					root.CFrame = environment.CFrame.new(root.Position) * environment.CFrame.Angles(0, spinAngle(root, delta), 0)
 				end)
 			end
@@ -2269,8 +2239,8 @@ end
 		local status
 		pcall(function() status = humanoid:GetState() end)
 		local stateTypes = environment.Enum.HumanoidStateType
-		if settings.bhop and humanoid and root and humanoid.Health > 0 and not globals.__pulseTouchFlinging and status ~= stateTypes.Climbing then
-			local invisible = globals.__pulseInvis
+		if settings.bhop and humanoid and root and humanoid.Health > 0 and not globals.__staticTouchFlinging and status ~= stateTypes.Climbing then
+			local invisible = globals.__staticInvis
 			local grounded = invisible and invisible.active and invisible.grounded
 				or (not (invisible and invisible.active) and humanoid.FloorMaterial ~= environment.Enum.Material.Air
 					and status ~= stateTypes.Freefall and status ~= stateTypes.Jumping)
@@ -2289,7 +2259,7 @@ end
 				speed = math.min(speed, math.max(walkSpeed * (2 + 0.4 * power), 100))
 				if not grounded or now - landedAt <= 0.25 then
 					local direction = environment.Vector3.new(movement.X, 0, movement.Z).Unit
-					local desired = math.max(speed, tonumber(globals.__pulseGlitchCur) or 0)
+					local desired = math.max(speed, tonumber(globals.__staticGlitchCur) or 0)
 					root.AssemblyLinearVelocity = environment.Vector3.new(direction.X * desired, velocity.Y, direction.Z * desired)
 				end
 			end
@@ -2300,22 +2270,22 @@ end
 			if not (speed > 0) and now > chainUntil then
 				reserve = 0
 			end
-			globals.__pulseBhopSpeed = math.max(speed, reserve, walkSpeed + 2 + power)
-			globals.__pulseBhopChain = speed > 0 or now <= chainUntil
+			globals.__staticBhopSpeed = math.max(speed, reserve, walkSpeed + 2 + power)
+			globals.__staticBhopChain = speed > 0 or now <= chainUntil
 		else
 			wasGrounded, speed = true, 0
 			if reserve > 0 and environment.os.clock() <= chainUntil then
-				globals.__pulseBhopSpeed, globals.__pulseBhopChain = reserve, true
+				globals.__staticBhopSpeed, globals.__staticBhopChain = reserve, true
 			else
 				reserve, chainUntil = 0, 0
-				globals.__pulseBhopSpeed, globals.__pulseBhopChain = 0, false
+				globals.__staticBhopSpeed, globals.__staticBhopChain = 0, false
 			end
 		end
 	end)
 	if not table.find(modes, settings.spin.mode) then settings.spin.mode = "Smooth" end
 	if not table.find(modes, context.defaults.spin.mode) then context.defaults.spin.mode = "Smooth" end
 	context.section:ToggleKey({Text = "Spin", Default = context.defaults.spin.on,
-		Bind = globals.__pulseBindFromName(settings.spin.key), Callback = function(enabled) settings.spin.on = not not enabled end,
+		Bind = globals.__staticBindFromName(settings.spin.key), Callback = function(enabled) settings.spin.on = not not enabled end,
 		OnBind = function(key) settings.spin.key = key and key.Name or "" end, Settings = function()
 			local options = {}
 			for _, mode in ipairs(modes) do table.insert(options, {code = mode, label = mode == "Smooth" and "Classic" or mode}) end
@@ -2326,7 +2296,7 @@ end
 				Callback = function(value) settings.spin.speed = value end})
 		end})
 	context.section:ToggleKey({Text = "Bhop", Default = context.defaults.bhop,
-		Bind = globals.__pulseBindFromName(settings.bhopKey), Callback = function(enabled) settings.bhop = not not enabled end,
+		Bind = globals.__staticBindFromName(settings.bhopKey), Callback = function(enabled) settings.bhop = not not enabled end,
 		OnBind = function(key) settings.bhopKey = key and key.Name or "" end, Settings = function()
 			context.section:Slider({Text = "Bhop Power", Min = 1, Max = 10, Default = context.defaults.bhopPower or 5, Decimals = 0,
 				Callback = function(value) settings.bhopPower = value end})
@@ -2345,7 +2315,7 @@ end
 				root.AssemblyAngularVelocity = environment.Vector3.new(0, 0, 0)
 			end)
 		end
-		globals.__pulseBhopSpeed, globals.__pulseBhopChain = 0, false
+		globals.__staticBhopSpeed, globals.__staticBhopChain = 0, false
 	end
 end
 
@@ -2604,13 +2574,13 @@ function Movement.installFly(context)
 	end)
 	context.connect(context.runService.Stepped, function(_, delta)
 		if not context.configuration.fly or not settings.on then
-			globals.__pulseFlyActive = false
+			globals.__staticFlyActive = false
 			if state.method then cleanup() end
 			return
 		end
 
 		local speed = tonumber(settings.speed) or 60
-		globals.__pulseFlyActive, globals.__pulseFlySpeed = true, speed
+		globals.__staticFlyActive, globals.__staticFlySpeed = true, speed
 		local character = context.player.Character
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 		local root = character and character:FindFirstChild("HumanoidRootPart")
@@ -2629,7 +2599,7 @@ function Movement.installFly(context)
 		methods[method].step(humanoid, root, character, delta, movement, vertical, forward, speed)
 	end)
 	context.section:ToggleKey({Text = "Fly", Default = context.defaults.fly.on,
-		Bind = globals.__pulseBindFromName(settings.key), Callback = function(enabled) settings.on = not not enabled end,
+		Bind = globals.__staticBindFromName(settings.key), Callback = function(enabled) settings.on = not not enabled end,
 		OnBind = function(key) settings.key = key and key.Name or "" end, Settings = function()
 			context.section:Slider({Text = "Fly Speed", Min = 10, Max = 300, Default = context.defaults.fly.speed or 60,
 				Decimals = 0, Callback = function(value) settings.speed = value end})
@@ -2642,7 +2612,7 @@ function Movement.installFly(context)
 		end})
 
 	return function()
-		globals.__pulseFlyActive = false
+		globals.__staticFlyActive = false
 		cleanup()
 	end
 end
@@ -2747,7 +2717,7 @@ function Movement.installSpeed(context)
 	context.connect(context.runService.Stepped, step)
 	local speed
 	local globals = environment.getgenv()
-	globals.__pulseSetSpeed = function(enabled)
+	globals.__staticSetSpeed = function(enabled)
 		enabled = not not enabled
 		if speed and speed.Set then
 			pcall(speed.Set, enabled)
@@ -2758,7 +2728,7 @@ function Movement.installSpeed(context)
 		if not enabled then dropMover() end
 		apply()
 	end
-	globals.__pulseGetSpeed = function() return not not state.on end
+	globals.__staticGetSpeed = function() return not not state.on end
 	speed = section:ToggleKey({Text = "Walk Speed", Default = false, Callback = function(enabled)
 		state.on = not not enabled
 		if not state.on then dropMover() end
@@ -2827,8 +2797,8 @@ function Movement.installGlitch(context)
 	local humanoidStates = environment.Enum.HumanoidStateType
 
 	local function publish(speed)
-		globals.__pulseGlitchCur = speed
-		globals.__pulseGlitchSpeed = speed > 0 and speed + 6 or 0
+		globals.__staticGlitchCur = speed
+		globals.__staticGlitchSpeed = speed > 0 and speed + 6 or 0
 	end
 	local function reset()
 		if state.speed == 0 and not state.airborne then return end
@@ -2844,7 +2814,7 @@ function Movement.installGlitch(context)
 		local character = context.player.Character
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 		local root = humanoid and humanoid.RootPart
-		if not root or humanoid.Health <= 0 or globals.__pulseFlyActive or globals.__pulseTouchFlinging then
+		if not root or humanoid.Health <= 0 or globals.__staticFlyActive or globals.__staticTouchFlinging then
 			reset()
 			return
 		end
@@ -2898,7 +2868,7 @@ function Movement.installGlitch(context)
 		context.section:Slider({Text = "Glitch Acceleration", Min = 10, Max = 300, Default = 60, Decimals = 0,
 			Callback = function(value) state.acceleration = tonumber(value) or 60 end})
 	end})
-	globals.__pulseSetSGlitch = function(enabled)
+	globals.__staticSetSGlitch = function(enabled)
 		enabled = not not enabled
 		if toggle and toggle.Set then
 			pcall(toggle.Set, enabled)
@@ -2906,7 +2876,7 @@ function Movement.installGlitch(context)
 		end
 		state.on = enabled
 	end
-	globals.__pulseGetSGlitch = function() return not not state.on end
+	globals.__staticGetSGlitch = function() return not not state.on end
 
 	return function()
 		state.on = false
@@ -2920,7 +2890,7 @@ function Movement.installWallHop(context)
 	local workspace, globals = context.workspace, environment.getgenv()
 	local state = {on = false, mode = "Press", angle = 90, camFlick = false, last = 0, press = 0,
 		edgeAt = -1, edgeAir = false, used = -2, held = false, filterT = 0}
-	globals.__pulseWallHop = state
+	globals.__staticWallHop = state
 	local rays = environment.RaycastParams.new()
 	rays.FilterType = enum.RaycastFilterType.Exclude
 	pcall(function() rays.RespectCanCollide = true end)
@@ -3007,7 +2977,7 @@ function Movement.installWallHop(context)
 		local pressed = humanoid.Jump or context.inputService:IsKeyDown(enum.KeyCode.Space) or now - state.press < 0.12
 		if pressed and not state.held then state.edgeAt, state.edgeAir = now, airborne end
 		state.held = pressed
-		if not state.on or state.back or globals.__pulseFlyActive or not airborne or now - state.last < 0.25 then return end
+		if not state.on or state.back or globals.__staticFlyActive or not airborne or now - state.last < 0.25 then return end
 		local current = humanoid:GetState()
 		if current ~= enum.HumanoidStateType.Freefall and current ~= enum.HumanoidStateType.Jumping then return end
 		local vertical, power = root.AssemblyLinearVelocity.Y, jumpPower(humanoid)
@@ -3061,7 +3031,7 @@ function Movement.installGravity(context)
 
 		if state.applied then
 			state.applied = false
-			local base = rawget(environment.getgenv(), "__pulseWorldBase")
+			local base = rawget(environment.getgenv(), "__staticWorldBase")
 			context.workspace.Gravity = type(base) == "table" and tonumber(base.Gravity) or 196.2
 		end
 	end
@@ -3178,7 +3148,7 @@ function FovSection.create(context)
 	repaint()
 	redraw()
 
-	environment.getgenv().__pulseFovPaint = function()
+	environment.getgenv().__staticFovPaint = function()
 		repaint()
 		context.redraw()
 	end
@@ -3315,12 +3285,12 @@ function SheriffSection.create(context)
 	settings.aimVer = "V4"
 
 	environment.pcall(function()
-		globals.__pulseAim = globals.__pulseAim or {}
+		globals.__staticAim = globals.__staticAim or {}
 		local enabled = settings.silentAim or settings.aimType == "Flick Shot"
-		globals.__pulseAim.on = not not enabled
+		globals.__staticAim.on = not not enabled
 
-		if enabled and globals.__pulseAim.installHook then
-			environment.pcall(globals.__pulseAim.installHook)
+		if enabled and globals.__staticAim.installHook then
+			environment.pcall(globals.__staticAim.installHook)
 		end
 	end)
 
@@ -3389,7 +3359,7 @@ function SheriffSection._createTiming(context)
 			end
 
 			settings.shotTiming = value
-			local aim = environment.rawget(environment.getgenv(), "__pulseAimX")
+			local aim = environment.rawget(environment.getgenv(), "__staticAimX")
 
 			if environment.type(aim) == "table" and aim.alive and aim.applyTiming then
 				environment.pcall(aim.applyTiming)
@@ -3420,7 +3390,7 @@ function SheriffSection._createResolver(context)
 	})
 	context.resolver = resolver
 
-	environment.getgenv().__pulseForceResolver = function()
+	environment.getgenv().__staticForceResolver = function()
 		if settings.aimVer ~= "V3" then
 			return
 		end
@@ -3433,7 +3403,7 @@ function SheriffSection._createResolver(context)
 	end
 
 	environment.task.defer(function()
-		environment.pcall(environment.getgenv().__pulseForceResolver)
+		environment.pcall(environment.getgenv().__staticForceResolver)
 	end)
 end
 
@@ -3450,19 +3420,19 @@ function SheriffSection._createAimControls(context)
 		Callback = function(value)
 			settings.aimType = value
 			local globals = environment.getgenv()
-			globals.__pulseAim = globals.__pulseAim or {}
+			globals.__staticAim = globals.__staticAim or {}
 
 			if value == "Flick Shot" then
-				globals.__pulseAim.on = true
+				globals.__staticAim.on = true
 
-				if globals.__pulseAim.installHook then
-					environment.pcall(globals.__pulseAim.installHook)
+				if globals.__staticAim.installHook then
+					environment.pcall(globals.__staticAim.installHook)
 				end
 
 				return
 			end
 
-			globals.__pulseAim.on = not not settings.silentAim
+			globals.__staticAim.on = not not settings.silentAim
 		end,
 	})
 end
@@ -3498,7 +3468,7 @@ end
 function SheriffSection._createKeybind(context)
 	local environment = context.environment
 	local settings = context.configuration.sheriff
-	local shootKey = environment.getgenv().__pulseBindFromName(settings.shootKey)
+	local shootKey = environment.getgenv().__staticBindFromName(settings.shootKey)
 
 	context.section:Keybind({
 		Text = "Shot Murder", Default = shootKey,
@@ -3511,19 +3481,19 @@ function SheriffSection._createKeybind(context)
 	context.connect(context.inputService.InputBegan, function(input)
 		local globals = environment.getgenv()
 
-		if not globals.__pulseBindReady() or not globals.__pulseBindHit(input, shootKey) then
+		if not globals.__staticBindReady() or not globals.__staticBindHit(input, shootKey) then
 			return
 		end
 
-		if globals.__pulseShotMurder then
-			environment.pcall(globals.__pulseShotMurder)
+		if globals.__staticShotMurder then
+			environment.pcall(globals.__staticShotMurder)
 		end
 	end)
 end
 
 function SheriffSection._updateStatus(context, note)
 	local environment = context.environment
-	local aim = environment.rawget(environment.getgenv(), "__pulseAimX")
+	local aim = environment.rawget(environment.getgenv(), "__staticAimX")
 
 	if environment.typeof(note) ~= "Instance" then
 		return
@@ -3543,14 +3513,14 @@ end
 local Configuration = {}
 
 function Configuration.baked(httpService)
-	local ok, value = pcall(httpService.JSONDecode, httpService, [=[{"ctrl":{"Main/ESP Box/Pulse Speed":1.2,"Main/ESP Lights/Ground Ring":true,"Main/ESP Box/Box Animation Speed":1,"Main/ESP Lights/Murderer Beam":false,"Main/ESP Extras/View Line Color Source":"ESP","Main/ESP/Show Hero":true,"Main/ESP Text/Gradient Color 2":"5ac8ff","Main/ESP Chams/Glow Core":100,"Main/ESP Extras/Head Custom Color":"ffffff","Main/ESP Health/Health Value":false,"Main/ESP Extras/Murderer Tracer Only":false,"Main/ESP Text/Role Style":"Short","Main/ESP Chams/Chams Brightness":100,"Main/ESP Colors/Murderer Color":"662b2b","Main/ESP Health/Bar Thickness":2,"Main/ESP Extras/Skeleton":true,"Main/ESP Radar/Minimap Range":150,"Main/ESP Extras/Marker Glow":false,"Main/ESP/Show No Role":true,"Main/ESP Chams/Edge Strength":100,"Main/ESP Radar/Show Myself":true,"Main/ESP Text/Detail Size":9,"Main/ESP Health/Health Bar":false,"Main/ESP Radar/Minimap":false,"Main/ESP Colors/Sheriff Color":"26344a","Main/ESP Text/Distance Unit":"Studs","Main/ESP Chams/Flash On Sight":false,"Main/ESP Text/Card Opacity":70,"Main/-/Style ESP":"Pulse","Main/ESP Extras/Head Style":"Ring","Main/ESP Text/Gradient Speed":1,"Main/ESP/Show Role Text":false,"Main/ESP Colors/Name Color":"fafafa","Main/ESP Look/X-Ray":false,"Main/ESP Text/Colored Name":true,"Main/ESP Text/Card Gradient":false,"Main/ESP Box/Murderer Box Style":"Same","Main/ESP Lights/Trail Length":0.8,"Main/ESP/Style ESP":"Outline","Main/ESP Radar/Edge Markers":true,"Main/ESP Extras/Bone Color":"ebebeb","Main/ESP Extras/View Direction":false,"Main/ESP Box/Player Box":false,"Main/ESP Extras/Marker Name":false,"Main/ESP Colors/No Role Color":"616161","Main/ESP Chams/Hidden Darkness":0,"Main/ESP Health/Smooth Health":true,"Main/ESP Text/Name Card":false,"Main/ESP Text/Stroke Size":0,"Main/ESP Box/Filled Box":false,"Main/ESP Box/Fill Strength":8,"Main/ESP/Show Sheriff":true,"Main/ESP Box/Box Gradient Style":"Two Color","Main/ESP Box/Box Gradient Angle":90,"Main/ESP Chams/Animation":"None","Main/ESP Box/Glow Size":5,"Main/ESP Radar/Minimap Shape":"Circle","Main/ESP Text/Distance":false,"Main/ESP Chams/Glow Overlay":false,"Main/ESP Extras/Head Fill":25,"Main/ESP Box/Outline Opacity":65,"Main/ESP Extras/Tracer Width":1,"Main/ESP Look/ESP Text Scale":100,"Main/ESP Chams/Sheriff Material":"Same","Main/ESP Chams/Body Gradient Bottom":"6ea0ff","Main/ESP/Hidden Style":"Fade","Main/ESP Box/Box Custom Color":"ffffff","Main/ESP Colors/Innocent Color":"266e1c","Main/ESP Text/Gradient Color 1":"ffffff","Main/ESP Chams/Flow Color":"ffc850","Main/ESP Box/Second Color":"ffffff","Main/ESP Box/Dark Outline":true,"Main/ESP Box/Glow Color Source":"ESP","Main/ESP Health/Full Health Color":"5ae178","Main/ESP Chams/Fill Strength":0,"Main/ESP Chams/Through Range":300,"Main/ESP Radar/Minimap Names":false,"Main/ESP Extras/Offscreen Arrows":true,"Main/ESP Colors/Custom Color":"f5f5f5","Main/ESP Lights/Light Range":14,"Main/ESP Chams/Murderer Material":"Same","Main/ESP/Distance Fade":true,"Main/ESP Look/Murderer Focus":false,"Main/ESP Extras/View Line Width":1.5,"Main/ESP Text/Name Case":"Normal","Main/ESP Text/Gradient Style":"ESP Color","Main/ESP Text/Font":"Arimo","Main/ESP Chams/Chams":true,"Main/ESP Lights/Trail Style":"Fade","Main/ESP Extras/Marker Size":5,"Main/ESP Health/Low Health Color":"eb3c3c","Main/ESP Box/Dash Length":8,"Main/ESP Extras/Joints":false,"Main/ESP Extras/Hidden Bones":"ffffff","Main/ESP Box/Gradient Spin Speed":1,"Main/ESP/Dim Hidden":true,"Main/ESP Look/ESP Brightness":100,"Main/ESP/Enable Role ESP":true,"Main/ESP Chams/Body Gradient Top":"ff7896","Main/ESP Box/Corner Length":22,"Main/-/Origin":"Bottom","Main/ESP/Max Distance":2000,"Main/ESP Text/Card Style":"Flat","Main/ESP Extras/Marker Style":"Arrow","Main/ESP/Fade Start":60,"Main/ESP Chams/Chams Outline":true,"Main/ESP Look/ESP Saturation":100,"Main/ESP Chams/Material":"Metallic","Main/ESP Text/Info Background":false,"Main/ESP Box/Corner Radius":4,"Main/-/Enable Role ESP":true,"Main/ESP Text/Card Border":1,"Main/ESP Lights/Light Pulse":true,"Main/ESP Text/Detail Layout":"Side Flags","Main/ESP Extras/Tracer Origin":"Top","Main/ESP Text/Text Outline Opacity":100,"Main/ESP Box/Gradient":false,"Main/ESP Box/Box Animation":"None","Main/ESP Colors/Far Color":"74aaff","Main/ESP/Chams Max Distance":0,"Main/ESP Text/Info Background Opacity":55,"Main/ESP Chams/Visible Edge":"ffffff","Main/ESP Box/Frame Style":"Double","Main/ESP Extras/Head Color Source":"ESP","Main/ESP/Show Innocent":true,"Main/ESP Lights/Ring Size":2.3,"Main/ESP Extras/Bone Gradient":true,"Main/ESP Text/Role Icon":false,"Main/ESP Text/Weapon Icon":false,"Main/ESP Box/Gentle Pulse":false,"Main/ESP Extras/Line Length":10,"Main/ESP Lights/Particle Style":"Sparkles","Main/ESP Text/Name Weight":"Regular","Main/ESP Extras/Tracers":false,"Main/ESP Box/Box Color Source":"ESP","Main/ESP/Name Max Distance":0,"Main/ESP Extras/Bone Style":"Soft Glow","Main/ESP Text/Stroke Color":"05080d","Main/ESP Extras/Bone Opacity":100,"Main/ESP Look/Rainbow Speed":1,"Main/ESP Extras/Marker Pulse":false,"Main/ESP/Visibility Check":false,"Main/ESP Colors/X-Ray":false,"Main/ESP/Enable ESP":true,"Main/ESP Text/Detail Font":"GothamSSm","Main/ESP Chams/Role Colors":true,"Main/ESP/Element Limits":false,"Main/ESP Extras/Tracer Style":"Line","Main/ESP Colors/Near Color":"ff6b6b","Main/ESP Extras/Joint Size":3,"Main/ESP Text/Weapon Display":"Icon","Main/-/Box ESP":false,"Main/ESP Chams/Hidden Fill":"966eff","Main/ESP Radar/Rotate With Camera":true,"Main/ESP Extras/Tracer Target":"Head","Main/ESP Extras/Bone Bottom Color":"a0aabe","Main/ESP Lights/Particle Rate":14,"Main/ESP Extras/Tracer Color":"ebebeb","Main/ESP/Box Max Distance":0,"Main/ESP Radar/Minimap Rings":2,"Main/ESP/Gun ESP":true,"Main/ESP Lights/Sonar Pulse":true,"Main/ESP Radar/Minimap Cross":true,"Main/ESP Extras/Marker Distance":true,"Main/ESP Text/Role Text":true,"Main/ESP Lights/FX Targets":"All","Main/ESP/Scale Lines With Distance":false,"Main/ESP Extras/Bone Thickness":2.1,"Main/ESP Colors/Detail Color":"c8cdd7","Main/ESP Lights/Sky Beam":false,"Main/ESP Lights/Trail Width":1,"Main/ESP Colors/Hidden Color":"969baa","Main/ESP Extras/Head Circle":false,"Main/-/Role ESP Style":"Filled","Main/ESP Text/Card Color":"141418","Main/ESP Text/Detail Case":"UPPER","Main/ESP Text/Name Shadow":false,"Main/-/Gun ESP":true,"Main/ESP Box/Outline Color":"000000","Main/ESP Colors/Shift Color":"ffffff","Main/ESP Look/Focus Thickness":160,"Main/ESP Colors/Color Mode":"Role","Main/ESP Box/Box Padding":0,"Main/ESP Look/Rainbow Saturation":65,"Main/ESP Text/Animate Gradient":true,"Main/ESP Box/Fill Style":"Solid","Main/ESP Chams/Hidden Edge":"c8b4ff","Main/ESP Look/Line Scale":100,"Main/ESP Box/Glow Strength":25,"Main/ESP Extras/Role Tracers":true,"Main/ESP Text/Name Size":9,"Main/ESP Chams/Chams Style":"Solid","Main/ESP Lights/Movement Trail":false,"Main/ESP/Skeleton Max Distance":0,"Main/ESP Box/Fill Custom Color":"ffffff","Main/ESP Box/Soft Glow":false,"Main/ESP Box/Spin Gradient":false,"Main/ESP/Smoothing":40,"Main/ESP Colors/Hero Color":"7e6e37","Main/ESP Radar/Minimap Dot Size":4,"Main/ESP Box/Outline Size":2,"Main/ESP Extras/Head Size":80,"Main/ESP Box/Fill Color Source":"ESP","Main/ESP Text/Name Format":"Username","Main/ESP Chams/Glow Halo":60,"Main/ESP/Show Murderer":true,"Main/ESP Radar/Minimap Size":180,"Main/ESP Radar/Minimap Background":55,"Main/ESP Text/Player Name":true,"Main/ESP/Show Studs":false,"Main/ESP Colors/Seen Color":"7ddeaa","Main/ESP Extras/Role Bones":false,"Main/ESP Radar/Minimap Border":"ffffff","Main/ESP Health/Bar Style":"Solid","Main/ESP Extras/View Line Color":"ffffff","Main/ESP Text/Gradient Angle":100,"Main/ESP Box/Line Thickness":1,"Main/ESP Text/Text Gradient":true,"Main/ESP Extras/Bone Top Color":"ffffff","Main/ESP Text/Name Position":"Below","Main/ESP Chams/Through Walls":true,"Main/ESP Chams/Scroll Body Gradient":false,"Main/ESP/Show Nickname":false,"Main/ESP Health/Position":"Left","Main/ESP Box/Inner Outline":false,"Main/ESP Chams/Animation Speed":1,"Main/ESP Extras/Tracer Opacity":60,"Main/ESP Extras/Radar Spread":285,"Main/ESP Text/Text Outline":true,"Main/ESP Chams/Visible Fill":"ff4646","Main/ESP Chams/Role Edge":true,"Main/ESP Box/Glow Custom Color":"ffffff","Main/ESP Chams/Shell Size":100,"Main/ESP Lights/Particles":false,"Main/-/Tracers":false,"Main/ESP Text/Card Radius":5,"Main/ESP Lights/Light Brightness":2.5,"Main/ESP Box/Box Width":50,"Main/ESP Lights/Aura Light":false,"Main/ESP Text/Hide Game Names":true,"Main/ESP Extras/Marker Position":"Around Center","Main/ESP Look/ESP Opacity":100,"Main/ESP Extras/Rainbow Tracers":false},"rolesp":{"hero":true,"highlight":true,"boxCol":{"a":1,"b":255,"g":255,"r":255},"murderer":true,"skeleton":false,"maxDist":0,"showDist":false,"skelOwn":false,"showRole":false,"boxOwn":false,"on":true,"innocent":true,"skelCol":{"a":1,"b":255,"g":252,"r":178},"showName":false,"style":"Outline","sheriff":true,"tracers":false,"boxStyle":"Full","box":false,"tracerFrom":"Bottom"}}]=])
+	local ok, value = pcall(httpService.JSONDecode, httpService, [=[{"ctrl":{"Main/ESP Box/Pulse Speed":1.2,"Main/ESP Lights/Ground Ring":true,"Main/ESP Box/Box Animation Speed":1,"Main/ESP Lights/Murderer Beam":false,"Main/ESP Extras/View Line Color Source":"ESP","Main/ESP/Show Hero":true,"Main/ESP Text/Gradient Color 2":"5ac8ff","Main/ESP Chams/Glow Core":100,"Main/ESP Extras/Head Custom Color":"ffffff","Main/ESP Health/Health Value":false,"Main/ESP Extras/Murderer Tracer Only":false,"Main/ESP Text/Role Style":"Short","Main/ESP Chams/Chams Brightness":100,"Main/ESP Colors/Murderer Color":"662b2b","Main/ESP Health/Bar Thickness":2,"Main/ESP Extras/Skeleton":true,"Main/ESP Radar/Minimap Range":150,"Main/ESP Extras/Marker Glow":false,"Main/ESP/Show No Role":true,"Main/ESP Chams/Edge Strength":100,"Main/ESP Radar/Show Myself":true,"Main/ESP Text/Detail Size":9,"Main/ESP Health/Health Bar":false,"Main/ESP Radar/Minimap":false,"Main/ESP Colors/Sheriff Color":"26344a","Main/ESP Text/Distance Unit":"Studs","Main/ESP Chams/Flash On Sight":false,"Main/ESP Text/Card Opacity":70,"Main/-/Style ESP":"Static","Main/ESP Extras/Head Style":"Ring","Main/ESP Text/Gradient Speed":1,"Main/ESP/Show Role Text":false,"Main/ESP Colors/Name Color":"fafafa","Main/ESP Look/X-Ray":false,"Main/ESP Text/Colored Name":true,"Main/ESP Text/Card Gradient":false,"Main/ESP Box/Murderer Box Style":"Same","Main/ESP Lights/Trail Length":0.8,"Main/ESP/Style ESP":"Outline","Main/ESP Radar/Edge Markers":true,"Main/ESP Extras/Bone Color":"ebebeb","Main/ESP Extras/View Direction":false,"Main/ESP Box/Player Box":false,"Main/ESP Extras/Marker Name":false,"Main/ESP Colors/No Role Color":"616161","Main/ESP Chams/Hidden Darkness":0,"Main/ESP Health/Smooth Health":true,"Main/ESP Text/Name Card":false,"Main/ESP Text/Stroke Size":0,"Main/ESP Box/Filled Box":false,"Main/ESP Box/Fill Strength":8,"Main/ESP/Show Sheriff":true,"Main/ESP Box/Box Gradient Style":"Two Color","Main/ESP Box/Box Gradient Angle":90,"Main/ESP Chams/Animation":"None","Main/ESP Box/Glow Size":5,"Main/ESP Radar/Minimap Shape":"Circle","Main/ESP Text/Distance":false,"Main/ESP Chams/Glow Overlay":false,"Main/ESP Extras/Head Fill":25,"Main/ESP Box/Outline Opacity":65,"Main/ESP Extras/Tracer Width":1,"Main/ESP Look/ESP Text Scale":100,"Main/ESP Chams/Sheriff Material":"Same","Main/ESP Chams/Body Gradient Bottom":"6ea0ff","Main/ESP/Hidden Style":"Fade","Main/ESP Box/Box Custom Color":"ffffff","Main/ESP Colors/Innocent Color":"266e1c","Main/ESP Text/Gradient Color 1":"ffffff","Main/ESP Chams/Flow Color":"ffc850","Main/ESP Box/Second Color":"ffffff","Main/ESP Box/Dark Outline":true,"Main/ESP Box/Glow Color Source":"ESP","Main/ESP Health/Full Health Color":"5ae178","Main/ESP Chams/Fill Strength":0,"Main/ESP Chams/Through Range":300,"Main/ESP Radar/Minimap Names":false,"Main/ESP Extras/Offscreen Arrows":true,"Main/ESP Colors/Custom Color":"f5f5f5","Main/ESP Lights/Light Range":14,"Main/ESP Chams/Murderer Material":"Same","Main/ESP/Distance Fade":true,"Main/ESP Look/Murderer Focus":false,"Main/ESP Extras/View Line Width":1.5,"Main/ESP Text/Name Case":"Normal","Main/ESP Text/Gradient Style":"ESP Color","Main/ESP Text/Font":"Arimo","Main/ESP Chams/Chams":true,"Main/ESP Lights/Trail Style":"Fade","Main/ESP Extras/Marker Size":5,"Main/ESP Health/Low Health Color":"eb3c3c","Main/ESP Box/Dash Length":8,"Main/ESP Extras/Joints":false,"Main/ESP Extras/Hidden Bones":"ffffff","Main/ESP Box/Gradient Spin Speed":1,"Main/ESP/Dim Hidden":true,"Main/ESP Look/ESP Brightness":100,"Main/ESP/Enable Role ESP":true,"Main/ESP Chams/Body Gradient Top":"ff7896","Main/ESP Box/Corner Length":22,"Main/-/Origin":"Bottom","Main/ESP/Max Distance":2000,"Main/ESP Text/Card Style":"Flat","Main/ESP Extras/Marker Style":"Arrow","Main/ESP/Fade Start":60,"Main/ESP Chams/Chams Outline":true,"Main/ESP Look/ESP Saturation":100,"Main/ESP Chams/Material":"Metallic","Main/ESP Text/Info Background":false,"Main/ESP Box/Corner Radius":4,"Main/-/Enable Role ESP":true,"Main/ESP Text/Card Border":1,"Main/ESP Lights/Light Pulse":true,"Main/ESP Text/Detail Layout":"Side Flags","Main/ESP Extras/Tracer Origin":"Top","Main/ESP Text/Text Outline Opacity":100,"Main/ESP Box/Gradient":false,"Main/ESP Box/Box Animation":"None","Main/ESP Colors/Far Color":"74aaff","Main/ESP/Chams Max Distance":0,"Main/ESP Text/Info Background Opacity":55,"Main/ESP Chams/Visible Edge":"ffffff","Main/ESP Box/Frame Style":"Double","Main/ESP Extras/Head Color Source":"ESP","Main/ESP/Show Innocent":true,"Main/ESP Lights/Ring Size":2.3,"Main/ESP Extras/Bone Gradient":true,"Main/ESP Text/Role Icon":false,"Main/ESP Text/Weapon Icon":false,"Main/ESP Box/Gentle Pulse":false,"Main/ESP Extras/Line Length":10,"Main/ESP Lights/Particle Style":"Sparkles","Main/ESP Text/Name Weight":"Regular","Main/ESP Extras/Tracers":false,"Main/ESP Box/Box Color Source":"ESP","Main/ESP/Name Max Distance":0,"Main/ESP Extras/Bone Style":"Soft Glow","Main/ESP Text/Stroke Color":"05080d","Main/ESP Extras/Bone Opacity":100,"Main/ESP Look/Rainbow Speed":1,"Main/ESP Extras/Marker Pulse":false,"Main/ESP/Visibility Check":false,"Main/ESP Colors/X-Ray":false,"Main/ESP/Enable ESP":true,"Main/ESP Text/Detail Font":"GothamSSm","Main/ESP Chams/Role Colors":true,"Main/ESP/Element Limits":false,"Main/ESP Extras/Tracer Style":"Line","Main/ESP Colors/Near Color":"ff6b6b","Main/ESP Extras/Joint Size":3,"Main/ESP Text/Weapon Display":"Icon","Main/-/Box ESP":false,"Main/ESP Chams/Hidden Fill":"966eff","Main/ESP Radar/Rotate With Camera":true,"Main/ESP Extras/Tracer Target":"Head","Main/ESP Extras/Bone Bottom Color":"a0aabe","Main/ESP Lights/Particle Rate":14,"Main/ESP Extras/Tracer Color":"ebebeb","Main/ESP/Box Max Distance":0,"Main/ESP Radar/Minimap Rings":2,"Main/ESP/Gun ESP":true,"Main/ESP Lights/Sonar Pulse":true,"Main/ESP Radar/Minimap Cross":true,"Main/ESP Extras/Marker Distance":true,"Main/ESP Text/Role Text":true,"Main/ESP Lights/FX Targets":"All","Main/ESP/Scale Lines With Distance":false,"Main/ESP Extras/Bone Thickness":2.1,"Main/ESP Colors/Detail Color":"c8cdd7","Main/ESP Lights/Sky Beam":false,"Main/ESP Lights/Trail Width":1,"Main/ESP Colors/Hidden Color":"969baa","Main/ESP Extras/Head Circle":false,"Main/-/Role ESP Style":"Filled","Main/ESP Text/Card Color":"141418","Main/ESP Text/Detail Case":"UPPER","Main/ESP Text/Name Shadow":false,"Main/-/Gun ESP":true,"Main/ESP Box/Outline Color":"000000","Main/ESP Colors/Shift Color":"ffffff","Main/ESP Look/Focus Thickness":160,"Main/ESP Colors/Color Mode":"Role","Main/ESP Box/Box Padding":0,"Main/ESP Look/Rainbow Saturation":65,"Main/ESP Text/Animate Gradient":true,"Main/ESP Box/Fill Style":"Solid","Main/ESP Chams/Hidden Edge":"c8b4ff","Main/ESP Look/Line Scale":100,"Main/ESP Box/Glow Strength":25,"Main/ESP Extras/Role Tracers":true,"Main/ESP Text/Name Size":9,"Main/ESP Chams/Chams Style":"Solid","Main/ESP Lights/Movement Trail":false,"Main/ESP/Skeleton Max Distance":0,"Main/ESP Box/Fill Custom Color":"ffffff","Main/ESP Box/Soft Glow":false,"Main/ESP Box/Spin Gradient":false,"Main/ESP/Smoothing":40,"Main/ESP Colors/Hero Color":"7e6e37","Main/ESP Radar/Minimap Dot Size":4,"Main/ESP Box/Outline Size":2,"Main/ESP Extras/Head Size":80,"Main/ESP Box/Fill Color Source":"ESP","Main/ESP Text/Name Format":"Username","Main/ESP Chams/Glow Halo":60,"Main/ESP/Show Murderer":true,"Main/ESP Radar/Minimap Size":180,"Main/ESP Radar/Minimap Background":55,"Main/ESP Text/Player Name":true,"Main/ESP/Show Studs":false,"Main/ESP Colors/Seen Color":"7ddeaa","Main/ESP Extras/Role Bones":false,"Main/ESP Radar/Minimap Border":"ffffff","Main/ESP Health/Bar Style":"Solid","Main/ESP Extras/View Line Color":"ffffff","Main/ESP Text/Gradient Angle":100,"Main/ESP Box/Line Thickness":1,"Main/ESP Text/Text Gradient":true,"Main/ESP Extras/Bone Top Color":"ffffff","Main/ESP Text/Name Position":"Below","Main/ESP Chams/Through Walls":true,"Main/ESP Chams/Scroll Body Gradient":false,"Main/ESP/Show Nickname":false,"Main/ESP Health/Position":"Left","Main/ESP Box/Inner Outline":false,"Main/ESP Chams/Animation Speed":1,"Main/ESP Extras/Tracer Opacity":60,"Main/ESP Extras/Radar Spread":285,"Main/ESP Text/Text Outline":true,"Main/ESP Chams/Visible Fill":"ff4646","Main/ESP Chams/Role Edge":true,"Main/ESP Box/Glow Custom Color":"ffffff","Main/ESP Chams/Shell Size":100,"Main/ESP Lights/Particles":false,"Main/-/Tracers":false,"Main/ESP Text/Card Radius":5,"Main/ESP Lights/Light Brightness":2.5,"Main/ESP Box/Box Width":50,"Main/ESP Lights/Aura Light":false,"Main/ESP Text/Hide Game Names":true,"Main/ESP Extras/Marker Position":"Around Center","Main/ESP Look/ESP Opacity":100,"Main/ESP Extras/Rainbow Tracers":false},"rolesp":{"hero":true,"highlight":true,"boxCol":{"a":1,"b":255,"g":255,"r":255},"murderer":true,"skeleton":false,"maxDist":0,"showDist":false,"skelOwn":false,"showRole":false,"boxOwn":false,"on":true,"innocent":true,"skelCol":{"a":1,"b":255,"g":252,"r":178},"showName":false,"style":"Outline","sheriff":true,"tracers":false,"boxStyle":"Full","box":false,"tracerFrom":"Bottom"}}]=])
 	if ok and type(value) == "table" then return value end
 	return nil
 end
 
 function Configuration.defaults(versions)
 	return {
-		active = true, antiFling = false, autoFlingSheriff = false, godMode = false,
+		active = true, antiFling = false, autoFlingSheriff = false, godMode = false, godMode = false,
 		bhop = false, bhopKey = "", bhopPower = 5, bhopSound = true, bombJump = false,
 		infJump = false, infJumpKey = "",
 		afk = {on = true},
@@ -3712,7 +3682,7 @@ function Configuration.snapshot(context)
 
 	local animations
 	environment.pcall(function()
-		local controller = environment.rawget(environment.getgenv(), "__pulseFA")
+		local controller = environment.rawget(environment.getgenv(), "__staticFA")
 
 		if controller and environment.type(controller.config) == "table" then
 			animations = context.json:JSONEncode(controller.config)
@@ -3794,7 +3764,7 @@ end
 function Configuration.applyAnimations(context, encoded)
 	local environment = context.environment
 	local globals = type(environment.getgenv) == "function" and environment.getgenv() or {}
-	local controller = globals.__pulseFA
+	local controller = globals.__staticFA
 	if not controller or type(controller.applyConfig) ~= "function" then
 		if type(encoded) == "string" then pcall(environment.writefile, "BundleAnimations/config.json", encoded) end
 		return
@@ -4032,10 +4002,10 @@ function Configuration.saveWhileCurrent(context)
 	local environment = context.environment
 	local lastWritten
 
-	while environment.getgenv().__pulseMM2SaveGen == context.generation do
+	while environment.getgenv().__staticMM2SaveGen == context.generation do
 		environment.task.wait(2)
 
-		if environment.getgenv().__pulseMM2SaveGen ~= context.generation then
+		if environment.getgenv().__staticMM2SaveGen ~= context.generation then
 			return
 		end
 
@@ -4056,17 +4026,17 @@ function Configuration._encode(context)
 	end)
 
 	if encoded then
-		environment.getgenv().__pulseCfgErr = nil
+		environment.getgenv().__staticCfgErr = nil
 		return encoded, serialized
 	end
 
-	environment.getgenv().__pulseCfgErr = environment.tostring(serialized)
+	environment.getgenv().__staticCfgErr = environment.tostring(serialized)
 	encoded, serialized = environment.pcall(function()
 		return context.json:JSONEncode(Configuration.sanitize(environment, context.settings))
 	end)
 
 	if not encoded then
-		environment.getgenv().__pulseCfgErr = "С‡РёСЃС‚РєР° РЅРµ РїРѕРјРѕРіР»Р°: " .. environment.tostring(serialized)
+		environment.getgenv().__staticCfgErr = "С‡РёСЃС‚РєР° РЅРµ РїРѕРјРѕРіР»Р°: " .. environment.tostring(serialized)
 	end
 
 	return encoded, serialized
@@ -4074,14 +4044,14 @@ end
 
 function Configuration._write(environment, serialized)
 	if not environment.writefile then
-		environment.getgenv().__pulseCfgErr = "РЅРµС‚ writefile"
+		environment.getgenv().__staticCfgErr = "РЅРµС‚ writefile"
 		return false
 	end
 
 	local written, failure = environment.pcall(environment.writefile, "PulseHubMM2_config.json", serialized)
 
 	if not written then
-		environment.getgenv().__pulseCfgErr = "writefile: " .. environment.tostring(failure)
+		environment.getgenv().__staticCfgErr = "writefile: " .. environment.tostring(failure)
 	end
 
 	return written
@@ -4382,7 +4352,7 @@ function RenderBindings.bind(context, name, priority, callback)
 	environment.pcall(function()
 		runService:UnbindFromRenderStep(name)
 	end)
-	environment.getgenv().__pulseBinds[name] = true
+	environment.getgenv().__staticBinds[name] = true
 
 	environment.pcall(function()
 		runService:BindToRenderStep(name, priority, function(...)
@@ -4830,12 +4800,12 @@ function Appearance.installXray(context)
 	local queue, index = {}, 1
 
 	pcall(function()
-		if type(globals.__pulseXrayOrig) ~= "table" then return end
-		for part, transparency in pairs(globals.__pulseXrayOrig) do
+		if type(globals.__staticXrayOrig) ~= "table" then return end
+		for part, transparency in pairs(globals.__staticXrayOrig) do
 			pcall(function() if part.Parent then part.Transparency = transparency end end)
 		end
 	end)
-	globals.__pulseXrayOrig = original
+	globals.__staticXrayOrig = original
 	local function eligible(part)
 		if not part:IsA("BasePart") or part:IsA("Terrain") or part.Transparency >= 1 then return false end
 		local model = part:FindFirstAncestorWhichIsA("Model")
@@ -5003,7 +4973,7 @@ function Appearance.installFakeItems(context)
 		end
 	end
 	local function refreshCosmetics()
-		local callback = rawget(globals, "__pulseSkinCos")
+		local callback = rawget(globals, "__staticSkinCos")
 		if type(callback) == "function" then pcall(callback) end
 	end
 	context.section:Toggle({Text = "Fake Korblox", Default = false, Callback = function(enabled)
@@ -5016,7 +4986,7 @@ function Appearance.installFakeItems(context)
 		if headEnabled then applyHead() else restoreHead() end
 		refreshCosmetics()
 	end})
-	globals.__pulseCosMine = function() return legEnabled, headEnabled end
+	globals.__staticCosMine = function() return legEnabled, headEnabled end
 	context.connect(context.player.CharacterAdded, function()
 		environment.task.wait(0.6)
 		legSaved, legacyMesh, headSaved, extras = {}, nil, {}, {}
@@ -5108,7 +5078,7 @@ function Appearance._chamsMaterial(environment, settings)
 		return material
 	end
 
-	local resolve = environment.getgenv().__pulseChamsMat
+	local resolve = environment.getgenv().__staticChamsMat
 	local ok, resolved = environment.pcall(function()
 		if resolve then
 			return resolve(settings.y)
@@ -6106,7 +6076,7 @@ local function createAuraData()
 ["pa_powerofsun"]={r6=true,h={{n="Torso",cf={7,0,0,0,1,0,0,0,1,0,0,0,1},s={2,2,2,1},k={{c="A",n="Attachment",p={CFrame={7,0.04617,-1.669,0.02068,1,0,0,0,1,0,0,0,1}},i=1,k={{c="P",n="CircleOuter",p={Brightness=15,Color={6,0,1,0.5216,0.03922,1,0.2941,0.1608,0.01176},Drag=1,Lifetime={4,1.6,1.6},LightEmission=1,LockedToPart=true,Orientation="VelocityPerpendicular",Rate=0.5,RotSpeed={4,-180,-180},Rotation={4,360,360},Shape="Disc",Size={5,0,3.375,0,1,5.312,0},Speed={4,0.1,0.1},Texture="rbxassetid://2152222413",Transparency={5,0,1,0,0.5052,0.7937,0,1,1,0}},g="Rings"},{c="P",n="Circle",p={Brightness=15,Color={6,0,1,0.5216,0.03922,1,0.2941,0.1608,0.01176},Drag=1,Lifetime={4,1.6,1.6},LightEmission=1,LockedToPart=true,Orientation="VelocityPerpendicular",Rate=0.5,RotSpeed={4,180,180},Rotation={4,360,360},Shape="Disc",Size={5,0,2.437,0,1,3.687,0},Speed={4,0.1,0.1},Texture="rbxassetid://2830891958",Transparency={5,0,1,0,0.5067,0.4,0,1,1,0}},g="Rings"}}},{c="P",n="AuraPart",p={Brightness=10,Color={6,0,1,0.6118,0.06667,1,1,0.8118,0.3255},Drag=10,Lifetime={4,1,1},LockedToPart=true,Rate=250,RotSpeed={4,-360,360},Size={5,0,0.5,0,0.4484,0,0,1,1.375,0},Speed={4,1,1},SpreadAngle={3,200,200},Texture="rbxassetid://6764385668",Transparency={5,0,0,0,1,1,0},ZOffset=-1},g="Glow"},{c="P",n="AuraPart2",p={Brightness=10,Color={6,0,1,0.6118,0.06667,1,1,0.8118,0.3255},Drag=10,Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=250,RotSpeed={4,-360,360},Size={5,0,0,0,1,0.1,0},Speed={4,6.3,6.3},SpreadAngle={3,360,360},Texture="rbxassetid://3186494455",Transparency={5,0,0,0,1,1,0},ZOffset=-1},g="Glow"},{c="P",n="TorsoPart",p={Color={6,0,1,0.6118,0.06667,1,1,0.8118,0.3255},Drag=10,Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=250,RotSpeed={4,-360,360},Size={5,0,0,0,1,3.687,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://3186494455",Transparency={5,0,0.8562,0,1,1,0},ZOffset=-3},g="Glow"}}}}},
 ["pa_cosmic"]={r6=true,h={{n="Head",cf={7,4.578e-05,1.5,0,1,0,0,0,1,0,0,0,1},s={2,2,1,1},k={{c="P",n="ParticleEmitter",p={Color={6,0,0.3412,0.2235,1,1,0.3412,0.2235,1},Lifetime={4,0.5,0.5},LightEmission=0.25,LightInfluence=1,Rate=100,Size={5,0,0.75,0,0.5,0.75,0.125,1,0.75,0.5,1,0.5,0},SpreadAngle={3,0,15},Texture="rbxassetid://1389215359",Transparency={5,0,0.5,0,0.5,0.625,0,1,1,0},ZOffset=-0.2},g="Glow"},{c="P",n="ParticleEmitter",p={Color={6,0,0.3059,0.7333,1,1,0.3059,0.7333,1},Lifetime={4,0.5,0.5},LightEmission=0.5,LightInfluence=1,Rate=100,Size={5,0,0.5,0,0.5,0.5,0.125,1,0.5,0.5,1,0.5,0},SpreadAngle={3,1,1},Texture="rbxassetid://1389215359",Transparency={5,0,0.5,0,0.5,0.625,0,1,1,0},ZOffset=-0.1},g="Glow"},{c="P",n="ParticleEmitter",p={Color={6,0,0.8275,0.1255,1,1,0.8275,0.1255,1},Lifetime={4,4,4},LightEmission=1,LightInfluence=1,Rate=50,Size={5,0,0.3,0,0.5,0.25,0.075,1,0.3,0.3,1,0.3,0},Speed={4,1,1},SpreadAngle={3,0,7},Texture="rbxassetid://145360630",Transparency={5,0,0.5,0,0.499,0.625,0,1,1,0}},g="Glow"}}},{n="Left Arm",cf={7,-1.506,1.526e-05,-0.0003662,0.9995,0,0.03311,0,1,0,-0.03311,0,0.9995},s={2,1,2,1},k={{c="P",n="ParticleEmitter",p={Color={6,0,0.3412,0.2235,1,1,0.3412,0.2235,1},Lifetime={4,0.5,0.5},LightEmission=0.25,LightInfluence=1,Rate=100,Size={5,0,0.75,0,0.5,0.75,0.125,1,0.75,0.5,1,0.5,0},SpreadAngle={3,0,15},Texture="rbxassetid://1389215359",Transparency={5,0,0.5,0,0.5,0.625,0,1,1,0},ZOffset=-0.2},g="Glow"},{c="P",n="ParticleEmitter",p={Color={6,0,0.3059,0.7333,1,1,0.3059,0.7333,1},Lifetime={4,0.5,0.5},LightEmission=0.5,LightInfluence=1,Rate=100,Size={5,0,0.5,0,0.5,0.5,0.125,1,0.5,0.5,1,0.5,0},SpreadAngle={3,1,1},Texture="rbxassetid://1389215359",Transparency={5,0,0.5,0,0.5,0.625,0,1,1,0},ZOffset=-0.1},g="Glow"},{c="P",n="ParticleEmitter",p={Color={6,0,0.8275,0.1255,1,1,0.8275,0.1255,1},Lifetime={4,4,4},LightEmission=1,LightInfluence=1,Rate=50,Size={5,0,0.3,0,0.5,0.25,0.075,1,0.3,0.3,1,0.3,0},Speed={4,1,1},SpreadAngle={3,0,7},Texture="rbxassetid://145360630",Transparency={5,0,0.5,0,0.499,0.625,0,1,1,0}},g="Glow"}}},{n="Right Arm",cf={7,1.517,-3.815e-05,0.0002441,0.9995,0,0.03311,0,1,0,-0.03311,0,0.9995},s={2,1,2,1},k={{c="P",n="ParticleEmitter",p={Color={6,0,0.3412,0.2235,1,1,0.3412,0.2235,1},Lifetime={4,0.5,0.5},LightEmission=0.25,LightInfluence=1,Rate=100,Size={5,0,0.75,0,0.5,0.75,0.125,1,0.75,0.5,1,0.5,0},SpreadAngle={3,0,15},Texture="rbxassetid://1389215359",Transparency={5,0,0.5,0,0.5,0.625,0,1,1,0},ZOffset=-0.2},g="Glow"},{c="P",n="ParticleEmitter",p={Color={6,0,0.3059,0.7333,1,1,0.3059,0.7333,1},Lifetime={4,0.5,0.5},LightEmission=0.5,LightInfluence=1,Rate=100,Size={5,0,0.5,0,0.5,0.5,0.125,1,0.5,0.5,1,0.5,0},SpreadAngle={3,1,1},Texture="rbxassetid://1389215359",Transparency={5,0,0.5,0,0.5,0.625,0,1,1,0},ZOffset=-0.1},g="Glow"},{c="P",n="ParticleEmitter",p={Color={6,0,0.8275,0.1255,1,1,0.8275,0.1255,1},Lifetime={4,4,4},LightEmission=1,LightInfluence=1,Rate=50,Size={5,0,0.3,0,0.5,0.25,0.075,1,0.3,0.3,1,0.3,0},Speed={4,1,1},SpreadAngle={3,0,7},Texture="rbxassetid://145360630",Transparency={5,0,0.5,0,0.499,0.625,0,1,1,0}},g="Glow"}}},{n="Torso",cf={7,0,0,0,1,0,0,0,1,0,0,0,1},s={2,2,2,1},k={{c="L",n="PointLight",p={Color={1,0,0.9843,1}},g="Light"},{c="P",n="ParticleEmitter",p={Color={6,0,0.3412,0.2235,1,1,0.3412,0.2235,1},Lifetime={4,0.5,0.5},LightEmission=0.25,LightInfluence=1,Rate=100,Size={5,0,0.75,0,0.5,0.75,0.125,1,0.75,0.5,1,0.5,0},SpreadAngle={3,0,15},Texture="rbxassetid://1389215359",Transparency={5,0,0.5,0,0.5,0.625,0,1,1,0},ZOffset=-0.2},g="Glow"},{c="P",n="ParticleEmitter",p={Color={6,0,0.3059,0.7333,1,1,0.3059,0.7333,1},Lifetime={4,0.5,0.5},LightEmission=0.5,LightInfluence=1,Rate=100,Size={5,0,0.5,0,0.5,0.5,0.125,1,0.5,0.5,1,0.5,0},SpreadAngle={3,1,1},Texture="rbxassetid://1389215359",Transparency={5,0,0.5,0,0.5,0.625,0,1,1,0},ZOffset=-0.1},g="Glow"},{c="P",n="ParticleEmitter",p={Color={6,0,0.8275,0.1255,1,1,0.8275,0.1255,1},Lifetime={4,4,4},LightEmission=1,LightInfluence=1,Rate=50,Size={5,0,0.3,0,0.5,0.25,0.075,1,0.3,0.3,1,0.3,0},Speed={4,1,1},SpreadAngle={3,0,7},Texture="rbxassetid://145360630",Transparency={5,0,0.5,0,0.499,0.625,0,1,1,0}},g="Glow"}}},{n="Left Leg",cf={7,-0.5366,-2,-0.0293,0.9996,0.000131,0.02672,-0.000129,1,-7.519e-05,-0.02672,7.172e-05,0.9996},s={2,1,2,1},k={{c="P",n="ParticleEmitter",p={Color={6,0,0.3412,0.2235,1,1,0.3412,0.2235,1},Lifetime={4,0.5,0.5},LightEmission=0.25,LightInfluence=1,Rate=100,Size={5,0,0.75,0,0.5,0.75,0.125,1,0.75,0.5,1,0.5,0},SpreadAngle={3,0,15},Texture="rbxassetid://1389215359",Transparency={5,0,0.5,0,0.5,0.625,0,1,1,0},ZOffset=-0.2},g="Glow"},{c="P",n="ParticleEmitter",p={Color={6,0,0.3059,0.7333,1,1,0.3059,0.7333,1},Lifetime={4,0.5,0.5},LightEmission=0.5,LightInfluence=1,Rate=100,Size={5,0,0.5,0,0.5,0.5,0.125,1,0.5,0.5,1,0.5,0},SpreadAngle={3,1,1},Texture="rbxassetid://1389215359",Transparency={5,0,0.5,0,0.5,0.625,0,1,1,0},ZOffset=-0.1},g="Glow"},{c="P",n="ParticleEmitter",p={Color={6,0,0.8275,0.1255,1,1,0.8275,0.1255,1},Lifetime={4,4,4},LightEmission=1,LightInfluence=1,Rate=50,Size={5,0,0.3,0,0.5,0.25,0.075,1,0.3,0.3,1,0.3,0},Speed={4,1,1},SpreadAngle={3,0,7},Texture="rbxassetid://145360630",Transparency={5,0,0.5,0,0.499,0.625,0,1,1,0}},g="Glow"}}},{n="Right Leg",cf={7,0.463,-2,-0.05603,0.9996,0.000131,0.02672,-0.000129,1,-7.519e-05,-0.02672,7.172e-05,0.9996},s={2,1,2,1},k={{c="P",n="ParticleEmitter",p={Color={6,0,0.3412,0.2235,1,1,0.3412,0.2235,1},Lifetime={4,0.5,0.5},LightEmission=0.25,LightInfluence=1,Rate=100,Size={5,0,0.75,0,0.5,0.75,0.125,1,0.75,0.5,1,0.5,0},SpreadAngle={3,0,15},Texture="rbxassetid://1389215359",Transparency={5,0,0.5,0,0.5,0.625,0,1,1,0},ZOffset=-0.2},g="Glow"},{c="P",n="ParticleEmitter",p={Color={6,0,0.3059,0.7333,1,1,0.3059,0.7333,1},Lifetime={4,0.5,0.5},LightEmission=0.5,LightInfluence=1,Rate=100,Size={5,0,0.5,0,0.5,0.5,0.125,1,0.5,0.5,1,0.5,0},SpreadAngle={3,1,1},Texture="rbxassetid://1389215359",Transparency={5,0,0.5,0,0.5,0.625,0,1,1,0},ZOffset=-0.1},g="Glow"},{c="P",n="ParticleEmitter",p={Color={6,0,0.8275,0.1255,1,1,0.8275,0.1255,1},Lifetime={4,4,4},LightEmission=1,LightInfluence=1,Rate=50,Size={5,0,0.3,0,0.5,0.25,0.075,1,0.3,0.3,1,0.3,0},Speed={4,1,1},SpreadAngle={3,0,7},Texture="rbxassetid://145360630",Transparency={5,0,0.5,0,0.499,0.625,0,1,1,0}},g="Glow"}}}}},
 ["pa_hellbent"]={r6=true,h={{n="Torso",cf={7,0,0,0,1,0,0,0,1,0,0,0,1},s={2,2,2,1},k={{c="A",n="Aura",p={CFrame={7,0,-2.1,0,1,0,0,0,1,0,0,0,1}},i=1,k={{c="P",n="MainDebris",p={Brightness=10,Color={6,0,1,0.02745,0.2039,1,1,0.02745,0.2039},FlipbookFramerate={4,5,5},FlipbookLayout="Grid4x4",Lifetime={4,0.6,0.7},LightEmission=0.5,LockedToPart=true,Orientation="VelocityPerpendicular",Rate=5,Rotation={4,-360,360},Size={5,0,9,0,1,3.625,0},Speed={4,0.01,0.01},Texture="rbxassetid://13156873238",Transparency={5,0,1,0,0.1845,0.9187,0,0.2759,0.7688,0,0.5,0,0,1,1,0}},g="Glow"},{c="P",n="Intake",p={Brightness=10,Color={6,0,1,0.02745,0.2039,1,1,0.4235,0.4824},FlipbookFramerate={4,5,5},Lifetime={4,0.4,0.6},LightEmission=0.5,LockedToPart=true,Orientation="VelocityPerpendicular",Rate=30,Rotation={4,-360,360},Size={5,0,6.875,0,1,0,0},Speed={4,0.01,0.01},Texture="rbxassetid://12728644177",Transparency={5,0,1,0,0.5016,0.875,0,1,1,0}},g="Glow"},{c="P",n="OuterGlow",p={Color={6,0,1,0.02745,0.2039,1,1,0.4235,0.4824},FlipbookFramerate={4,5,5},Lifetime={4,0.4,0.6},LockedToPart=true,Orientation="VelocityPerpendicular",Rate=30,RotSpeed={4,-360,360},Rotation={4,-360,360},Size={5,0,6,0,1,3.938,0},Speed={4,0.01,0.01},Texture="rbxassetid://12397489619",Transparency={5,0,1,0,0.4968,0.7188,0,1,1,0}},g="Glow"},{c="P",n="OuterGlowFlipBk",p={Color={6,0,1,0,0.01569,1,1,0,0.01569},FlipbookFramerate={4,5,5},FlipbookLayout="Grid4x4",Lifetime={4,0.4,0.6},LightEmission=1,LockedToPart=true,Orientation="VelocityPerpendicular",Rate=30,Rotation={4,-360,360},Size={5,0,8,0,1,6.688,0},Speed={4,0.01,0.01},Texture="rbxassetid://13156870577",Transparency={5,0,1,0,0.5005,0.9438,0,1,1,0}},g="Glow"},{c="P",n="Slashes",p={Color={6,0,0,0,0,1,0,0,0},FlipbookFramerate={4,5,5},Lifetime={4,0.4,0.6},LockedToPart=true,Orientation="VelocityPerpendicular",Rate=15,RotSpeed={4,90,90},Rotation={4,-360,360},Size={5,0,6.125,0,1,2.312,0},Speed={4,0.01,0.01},Texture="rbxassetid://12678933489",Transparency={5,0,1,0,0.5032,0.6375,0,1,1,0}},g="Glow"},{c="P",n="RainbowOutside",p={FlipbookFramerate={4,5,5},Lifetime={4,0.4,0.6},LightEmission=1,LockedToPart=true,Orientation="VelocityPerpendicular",Rate=15,Rotation={4,-360,360},Size={5,0,7,0,1,7,0},Speed={4,0.01,0.01},Texture="rbxassetid://12591390025",Transparency={5,0,1,0,0.4958,0.9812,0,1,1,0}},g="Rain"},{c="P",n="Hypnotism",p={Brightness=10,Color={6,0,1,0.02745,0.2039,1,1,0.02745,0.2039},FlipbookFramerate={4,30,30},FlipbookLayout="Grid4x4",Lifetime={4,1.25,1.25},LockedToPart=true,Orientation="VelocityPerpendicular",Rate=2,Rotation={4,-360,360},Size={5,0,6,0,1,6,0},Speed={4,0.01,0.01},Texture="rbxassetid://12867093437",Transparency={5,0,1,0,0.4974,0.8875,0,1,1,0}},g="Glow"},{c="P",n="Hypnotism2",p={Brightness=10,Color={6,0,1,0.02745,0.2039,1,1,0.02745,0.2039},FlipbookFramerate={4,30,30},FlipbookLayout="Grid8x8",Lifetime={4,1.25,1.25},LockedToPart=true,Orientation="VelocityPerpendicular",Rotation={4,-360,360},Size={5,0,12,0,1,12,0},Speed={4,0.01,0.01},Texture="rbxassetid://12423428506",Transparency={5,0,1,0,0.4989,0.9875,0,1,1,0}},g="Glow"}}},{c="A",n="Aura2",p={CFrame={7,0,-2.1,0,0,-1,0,1,0,0,0,0,1}},i=2,k={{c="P",n="Expellation",p={Brightness=5,Color={6,0,1,0.02745,0.2039,1,1,0.4235,0.4824},Drag=5,FlipbookFramerate={4,5,5},Lifetime={4,0.3,0.5},LockedToPart=true,Orientation="VelocityParallel",Rate=100,Size={5,0,0.5,0.5,1,0,0},Speed={4,30,30},SpreadAngle={3,180,5},Squash={5,0,-3,0,0.7003,-3,0,1,0,0},Texture="rbxassetid://12142723563",Transparency={5,0,1,0,0.2341,1,0,0.5069,0,0,1,1,0},ZOffset=1},g="Glow"}}},{c="A",n="Beam2",p={CFrame={7,0,3.273,-0.9603,1,0,0,0,1,0,0,0,1}},i=3},{c="A",n="Beam1",p={CFrame={7,0,-2.705,-0.9603,1,0,0,0,1,0,0,0,1}},i=4},{c="A",n="Beam3",p={CFrame={7,-6.104e-05,-2.705,1.019,1,0,0,0,1,0,0,0,1}},i=5},{c="A",n="Beam4",p={CFrame={7,0,3.273,1.019,1,0,0,0,1,0,0,0,1}},i=6},{c="P",n="Dots",p={Brightness=5,Color={6,0,1,0.02745,0.2039,1,1,0.02745,0.2039},Drag=10,Lifetime={4,1,1},Rate=5,Rotation={4,-360,360},Size={5,0,3,0,1,0,0},Speed={4,13,13},SpreadAngle={3,360,360},Texture="rbxassetid://11448304274",Transparency={5,0,1,0,0.5011,0.6375,0,1,1,0},ZOffset=1},g="Glow"},{c="B",n="InnerBeam2",p={Brightness=0,Color={6,0,0,0,0,1,0,0,0},FaceCamera=true,Texture="rbxassetid://11172050895",TextureSpeed=-2,Transparency={5,0,1,0,0.5011,0,0,1,1,0},Width0=5,Width1=5},a=4,b=3,g="Glow"},{c="B",n="InnerBeam",p={Brightness=5,Color={6,0,0.5451,0.01569,0.1137,1,0.5451,0.01569,0.1137},FaceCamera=true,Texture="rbxassetid://10433365157",TextureLength=0.5,TextureSpeed=2,Transparency={5,0,1,0,0.4989,0.4937,0,1,1,0},Width0=20,Width1=20},a=4,b=3,g="Glow"},{c="B",n="InnerBeam3",p={Brightness=5,Color={6,0,0.5451,0.01569,0.1137,1,0.5451,0.01569,0.1137},FaceCamera=true,Texture="rbxassetid://10433365157",TextureLength=0.5,TextureSpeed=2,Transparency={5,0,1,0,0.4989,0.4937,0,1,1,0},Width0=20,Width1=20},a=5,b=6,g="Glow"},{c="B",n="InnerBeam4",p={Brightness=0,Color={6,0,0,0,0,1,0,0,0},FaceCamera=true,Texture="rbxassetid://11172050895",TextureSpeed=-2,Transparency={5,0,1,0,0.5011,0,0,1,1,0},Width0=5,Width1=5},a=5,b=6,g="Glow"},{c="B",n="Outside",p={Brightness=5,Color={6,0,1,0.02745,0.2039,1,1,0.02745,0.2039},FaceCamera=true,Texture="rbxassetid://10234757197",TextureLength=0.5,TextureSpeed=2,Transparency={5,0,1,0,0.4989,0.4937,0,1,1,0},Width0=5,Width1=5},a=4,b=3,g="Glow"},{c="B",n="Outside2",p={Brightness=5,Color={6,0,1,0.02745,0.2039,1,1,0.02745,0.2039},FaceCamera=true,Texture="rbxassetid://10234757197",TextureLength=0.5,TextureSpeed=2,Transparency={5,0,1,0,0.4989,0.4937,0,1,1,0},Width0=5,Width1=5},a=5,b=6,g="Glow"}}}}},
-["pa_vortex"]={r6=true,h={{n="Torso",cf={7,0,0,0,1,0,0,0,1,0,0,0,1},s={2,2,2,1},k={{c="A",n="Attachment",p={CFrame={7,0,-2,0,1,0,0,0,1,0,0,0,1}},i=1,k={{c="P",n="Pulse",p={Color={6,0,0,0.149,1,1,0,0.149,1},Lifetime={4,4,4},LightEmission=0.9,LockedToPart=true,Orientation="VelocityPerpendicular",Rate=15,RotSpeed={4,180,180},Rotation={4,0,360},Size={5,0,1.438,0,0.4076,2.062,0,0.5006,3,0,0.5947,2.188,0,1,1.5,0},Speed={4,0.001,0.001},Texture="rbxassetid://8796903045",Transparency={5,0,0,0,1,1,0},ZOffset=1},g="Glow"},{c="P",n="ParticleEmitter",p={Acceleration={2,0,1,0},Lifetime={4,2,2},LightEmission=1,LightInfluence=1,Orientation="VelocityParallel",Rate=30,Size={5,0,0.5,0,1,0.5,0},Speed={4,3,3},SpreadAngle={3,80,80},Texture="rbxassetid://7216979807",Transparency={5,0,1,0,0.03904,0.3875,0,0.8691,0.3562,0,1,1,0}},g="Glow"},{c="P",n="Pulse",p={Lifetime={4,4,4},LightEmission=0.5,LockedToPart=true,Orientation="VelocityPerpendicular",Rate=15,RotSpeed={4,180,180},Rotation={4,0,360},Size={5,0,1.2,0,1,1.2,0},Speed={4,0.001,0.001},Texture="rbxassetid://8796903045",Transparency={5,0,0,0,1,1,0},ZOffset=1},g="Glow"}}}}}}},
+["pa_vortex"]={r6=true,h={{n="Torso",cf={7,0,0,0,1,0,0,0,1,0,0,0,1},s={2,2,2,1},k={{c="A",n="Attachment",p={CFrame={7,0,-2,0,1,0,0,0,1,0,0,0,1}},i=1,k={{c="P",n="Static",p={Color={6,0,0,0.149,1,1,0,0.149,1},Lifetime={4,4,4},LightEmission=0.9,LockedToPart=true,Orientation="VelocityPerpendicular",Rate=15,RotSpeed={4,180,180},Rotation={4,0,360},Size={5,0,1.438,0,0.4076,2.062,0,0.5006,3,0,0.5947,2.188,0,1,1.5,0},Speed={4,0.001,0.001},Texture="rbxassetid://8796903045",Transparency={5,0,0,0,1,1,0},ZOffset=1},g="Glow"},{c="P",n="ParticleEmitter",p={Acceleration={2,0,1,0},Lifetime={4,2,2},LightEmission=1,LightInfluence=1,Orientation="VelocityParallel",Rate=30,Size={5,0,0.5,0,1,0.5,0},Speed={4,3,3},SpreadAngle={3,80,80},Texture="rbxassetid://7216979807",Transparency={5,0,1,0,0.03904,0.3875,0,0.8691,0.3562,0,1,1,0}},g="Glow"},{c="P",n="Static",p={Lifetime={4,4,4},LightEmission=0.5,LockedToPart=true,Orientation="VelocityPerpendicular",Rate=15,RotSpeed={4,180,180},Rotation={4,0,360},Size={5,0,1.2,0,1,1.2,0},Speed={4,0.001,0.001},Texture="rbxassetid://8796903045",Transparency={5,0,0,0,1,1,0},ZOffset=1},g="Glow"}}}}}}},
 ["pa_mage"]={r6=true,h={{n="Torso",cf={7,0,0,0,1,0,0,0,1,0,0,0,1},s={2,2,2,1},k={{c="L",n="PointLight",g="Light"},{c="A",n="Quake",p={CFrame={7,-0.05005,-1,-0.5424,0.9996,0.000131,0.02672,-0.000129,1,-7.519e-05,-0.02672,7.172e-05,0.9996}},i=1,k={{c="P",n="Ring",p={Brightness=3,Color={6,0,1,0.2627,0.6196,1,1,0.2627,0.6196},Drag=10,Lifetime={4,0.6,0.7},LightEmission=1,LockedToPart=true,Orientation="VelocityPerpendicular",RotSpeed={4,360,360},Rotation={4,-360,360},Size={5,0,7,0,1,7.375,0},Speed={4,1,1},SpreadAngle={3,1,1},Texture="rbxassetid://11557895555",Transparency={5,0,1,0,0.4006,0.4812,0,0.6025,0.4312,0,1,1,0}},g="Rings"},{c="P",n="Glow",p={Brightness=3,Color={6,0,1,0.2627,0.6196,1,1,0.2627,0.6196},Drag=10,Lifetime={4,0.6,0.7},LightEmission=1,LockedToPart=true,Orientation="VelocityPerpendicular",Rate=5,RotSpeed={4,360,360},Rotation={4,-360,360},Size={5,0,20,0,1,20,0},Speed={4,0.01,0.01},Texture="rbxassetid://12159555294",Transparency={5,0,1,0,0.3996,0.8813,0,0.601,0.8313,0,1,1,0}},g="Glow"},{c="P",n="Star",p={Brightness=3,Color={6,0,1,0.4588,0.749,1,1,0.4588,0.749},Drag=10,Lifetime={4,0.6,0.7},LightEmission=1,LockedToPart=true,Orientation="VelocityPerpendicular",Rate=5,Size={5,0,7,0,1,7,0},Speed={4,0.01,0.01},Texture="rbxassetid://10598374841",Transparency={5,0,1,0,0.4017,0,0,0.6004,0,0,1,1,0},ZOffset=0.01},g="Stars"},{c="P",n="StarGlow",p={Brightness=3,Color={6,0,1,0.3765,0.7098,1,1,0.3765,0.7098},Drag=10,Lifetime={4,0.6,0.7},LightEmission=1,LockedToPart=true,Orientation="VelocityPerpendicular",Rotation={4,-360,360},Size={5,0,5,0,1,6.562,0},Speed={4,1,1},SpreadAngle={3,1,1},Texture="rbxassetid://12397489619",Transparency={5,0,1,0,0.3996,0.9125,0,0.5988,0.9,0,1,1,0}},g="Stars"},{c="P",n="RingGlow",p={Brightness=5,Color={6,0,1,0.6706,0.8118,1,1,0.6706,0.8118},Drag=10,FlipbookLayout="Grid4x4",FlipbookMode="OneShot",Lifetime={4,0.6,0.7},LightEmission=1,LockedToPart=true,Orientation="VelocityPerpendicular",Rotation={4,-360,360},Size={5,0,11,0,1,9.614,0},Speed={4,1,1},SpreadAngle={3,1,1},Texture="rbxassetid://13156870577",Transparency={5,0,1,0,0.3996,0.9125,0,0.5988,0.9,0,1,1,0}},g="Rings"},{c="P",n="Debris",p={Acceleration={2,0,50,0},Brightness=3,Color={6,0,1,0.4588,0.749,1,1,0.4588,0.749},Drag=10,Lifetime={4,1,1.5},LightEmission=1,Rate=50,Rotation={4,-360,360},Size={5,0,0.625,0.625,1,0,0},Speed={4,45,50},SpreadAngle={3,180,180},Texture="rbxassetid://8090715771",TimeScale=0.5,Transparency={5,0,1,0,0.4017,0,0,0.6004,0,0,1,1,0},ZOffset=0.01},g="Glow"},{c="P",n="Ambient",p={Brightness=3,Color={6,0,1,0.2627,0.6196,1,1,0.2627,0.6196},Drag=10,FlipbookLayout="Grid4x4",FlipbookMode="OneShot",Lifetime={4,0.6,0.7},LightEmission=1,LockedToPart=true,Orientation="VelocityPerpendicular",Rate=5,Rotation={4,-360,360},Size={5,0,15,0,1,15,0},Speed={4,0.01,0.01},Texture="rbxassetid://11989899750",Transparency={5,0,1,0,0.4012,0.9625,0,0.6015,0.925,0,1,1,0}},g="Glow"},{c="P",n="Debris2",p={Acceleration={2,0,50,0},Brightness=10,Color={6,0,1,0.4588,0.749,1,1,0.4588,0.749},Drag=10,Lifetime={4,1,1.5},LightEmission=1,Rate=10,Rotation={4,-360,360},Size={5,0,1.187,1.187,0.1607,0,0,0.3404,0.5625,0.5625,0.5275,0,0,0.6084,0.6875,0.6875,0.8002,0,0,0.899,0.625,0.625,1,0,0},Speed={4,45,50},SpreadAngle={3,180,180},Texture="rbxassetid://13278236180",TimeScale=0.5,Transparency={5,0,1,0,0.4017,0,0,0.6004,0,0,1,1,0},ZOffset=0.01},g="Glow"},{c="P",n="Ring",p={Brightness=3,Color={6,0,1,0.2627,0.6196,1,1,0.2627,0.6196},Drag=10,Lifetime={4,0.6,0.7},LightEmission=1,LockedToPart=true,Orientation="VelocityPerpendicular",Rate=10,RotSpeed={4,60,60},Rotation={4,-360,360},Size={5,0,8.335,0,1,15.71,0},SpreadAngle={3,5,5},Texture="rbxassetid://11557895555",Transparency={5,0,1,0,0.4001,0.9062,0,0.6015,0.8938,0,1,1,0}},g="Rings"}}},{c="L",n="PointLight",p={Color={1,0.9686,0,1},Range=16},g="Light"}}}}},
 ["pa_multidim"]={r6=true,h={{n="Torso",cf={7,0,0,0,1,0,0,0,1,0,0,0,1},s={2,2,2,1},k={{c="L",n="PointLight",p={Brightness=4,Color={1,0.6667,0,1},Range=6},g="Light"},{c="A",n="Attachment",p={CFrame={7,0,-1.875,0,1,0,0,0,1,0,0,0,1}},i=1,k={{c="P",n="LIGHT",p={Color={6,0,0.6667,0,1,1,0.6667,0,1},Lifetime={4,2,2},LightEmission=1,LightInfluence=1,LockedToPart=true,Orientation="VelocityPerpendicular",Rate=5,Shape="Disc",Size={5,0,10,0,1,4.062,0},Speed={4,0.001,0.001},Texture="rbxassetid://1075864321",Transparency={5,0,1,0,0.2,0,0,0.8,0,0,1,1,0}},g="Glow"},{c="P",n="SQUARE",p={Acceleration={2,0,1,0},Color={6,0,1,0.3333,0,0.5,0.6667,0,1,1,1,0.3333,0},Lifetime={4,2,2},LightEmission=1,LightInfluence=1,LockedToPart=true,Orientation="VelocityPerpendicular",Rate=3,RotSpeed={4,-50,50},Rotation={4,-360,360},Size={5,0,2.5,0.5,1,2.5,0.5},Speed={4,0.5,0.5},SpreadAngle={3,20,20},Texture="rbxassetid://4708294541",Transparency={5,0,1,0,0.2,0.6,0,0.8,0.6,0,1,1,0}},g="Glow"}}},{c="A",n="Attachment",i=2,k={{c="P",n="SPIN",p={Color={6,0,1,0.3333,0,1,0.6667,0,1},Lifetime={4,2,2},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=1,RotSpeed={4,100,100},Size={5,0,0,0,1,4,0},Speed={4,0,0},Texture="rbxassetid://8214518341",Transparency={5,0,1,0,0.2,0.5,0,0.8,0.5,0,1,1,0}},g="Glow"},{c="P",n="SPIN",p={Color={6,0,0.6667,0,1,1,1,0.3333,0},Lifetime={4,2,2},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=1,RotSpeed={4,100,100},Rotation={4,-45,-45},Size={5,0,0,0,1,4,0},Speed={4,0,0},Texture="rbxassetid://8214518341",Transparency={5,0,1,0,0.2,0.5,0,0.8,0.5,0,1,1,0}},g="Glow"},{c="P",n="LIGHT",p={Color={6,0,0.6667,0,1,1,1,0.3333,0},Lifetime={4,2,2},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=3,Shape="Disc",Size={5,0,3.5,0,1,0,0},Speed={4,0.001,0.001},Texture="rbxassetid://1075864321",Transparency={5,0,1,0,0.2,0,0,0.8,0,0,1,1,0}},g="Glow"}}}}}}},
 ["pa_bethlehem"]={r6=true,h={{n="Torso",cf={7,0,0,0,1,0,0,0,1,0,0,0,1},s={2,2,2,1},k={{c="L",n="PointLight",g="Light"},{c="L",n="PointLight",p={Brightness=3,Color={1,0.3333,0.6667,1},Range=5},g="Light"},{c="A",n="Circle",p={CFrame={7,-3.5,-1.5,-1.526e-05,0,-1,0,0,0,1,-1,0,0}},i=1,k={{c="B",n="Beam",p={Color={6,0,0.3333,0.6667,1,1,0.3333,0.6667,1},CurveSize0=4.5,CurveSize1=4.5,LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://6091474388",Transparency={5,0,0,0,1,0,0}},a=1,b=2,g="Rings"}}},{c="A",n="Circle",p={CFrame={7,3.5,-1.5,-1.526e-05,0,-1,0,0,0,-1,1,0,0}},i=2,k={{c="B",n="Beam",p={Color={6,0,0.6667,1,1,1,0.6667,1,1},CurveSize0=4.5,CurveSize1=4.5,LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://6091474388",Transparency={5,0,0,0,1,0,0}},a=2,b=1,g="Rings"}}},{c="A",n="Circle",p={CFrame={7,0,-1.5,3.5,-1,0,0,0,0,1,0,1,0}},i=3,k={{c="B",n="Beam",p={Color={6,0,0.6667,1,1,1,0.6667,1,1},CurveSize0=4.5,CurveSize1=4.5,LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://6091474388",Transparency={5,0,0,0,1,0,0}},a=3,b=4,g="Rings"}}},{c="A",n="Circle",p={CFrame={7,-3.052e-05,-1.5,-3.5,1,0,0,0,0,-1,0,1,0}},i=4,k={{c="B",n="Beam",p={Color={6,0,0.3333,0.6667,1,1,0.3333,0.6667,1},CurveSize0=4.5,CurveSize1=4.5,LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://6091474388",Transparency={5,0,0,0,1,0,0}},a=4,b=3,g="Rings"}}},{c="A",n="Attachment",p={CFrame={7,-1.907e-06,9.5,-1.526e-05,1,0,0,0,1,0,0,0,1}},i=5,k={{c="P",n="ParticleEmitter",p={Color={6,0,0.3333,0.6667,1,1,0.3333,0.6667,1},Lifetime={4,1.2,1.2},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=1.2,Size={5,0,2.5,0,1,2.5,0},Speed={4,0.001,0.001},Texture="rbxassetid://7216848832",Transparency={5,0,1,0,0.2,0,0,0.8,0,0,1,1,0}},g="Glow"},{c="P",n="ParticleEmitter",p={Color={6,0,0.3333,0.6667,1,1,0.3333,0.6667,1},Lifetime={4,2,2},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=1,Size={5,0,2,0,1,2,0},Speed={4,0.001,0.001},Texture="rbxassetid://1084970835",Transparency={5,0,1,0,0.2,0,0,0.8,0,0,1,1,0}},g="Glow"}}},{c="A",n="Attachment",p={CFrame={7,0,-1.625,0,1,0,0,0,1,0,0,0,1}},i=6,k={{c="P",n="ParticleEmitter",p={Color={6,0,0.3333,0.6667,1,1,0.3333,0.6667,1},Lifetime={4,1,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Orientation="VelocityPerpendicular",Rate=5,RotSpeed={4,200,200},Rotation={4,-360,360},Size={5,0,4,0,1,4,0},Speed={4,0.001,0.001},Texture="rbxassetid://1380079888",Transparency={5,0,1,0,0.2,0,0,0.8,0,0,1,1,0}},g="Glow"},{c="B",n="Beam",p={Color={6,0,0.3333,0.6667,1,1,0.3333,0.6667,1},FaceCamera=true,LightEmission=1,LightInfluence=1,Texture="rbxassetid://1084976679",Transparency={5,0,1,0,0.2,0,0,0.8,0,0,1,1,0},Width0=10,Width1=4},a=6,b=5,g="Glow"},{c="B",n="Beam",p={Color={6,0,0.3333,0.6667,1,1,0.3333,0.6667,1},FaceCamera=true,LightEmission=1,LightInfluence=1,Texture="rbxassetid://2316283203",Transparency={5,0,1,0,0.2,0.5,0,0.8,0.5,0,1,1,0},Width0=10,Width1=3},a=6,b=5,g="Glow"},{c="P",n="ParticleEmitter",p={Color={6,0,0.3333,0.6667,1,1,0.3333,0.6667,1},Lifetime={4,1.4,1.4},LightEmission=1,LightInfluence=1,LockedToPart=true,Orientation="VelocityPerpendicular",Rate=5,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,7,0,1,7,0},Speed={4,0.001,0.001},Texture="rbxassetid://1075864321",Transparency={5,0,1,0,0.2,0,0,0.8,0,0,1,1,0}},g="Glow"},{c="P",n="ParticleEmitter",p={Color={6,0,0.3333,0.6667,1,1,0.3333,0.6667,1},Lifetime={4,1,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Orientation="VelocityPerpendicular",Rate=10,RotSpeed={4,-200,200},Rotation={4,-360,360},Size={5,0,7,0,1,7,0},Speed={4,0.001,0.001},SpreadAngle={3,5,5},Texture="rbxassetid://8214520409",Transparency={5,0,1,0,0.2,0,0,0.8,0,0,1,1,0}},g="Glow"}}}}}}},
@@ -6143,7 +6113,7 @@ local function createAuraData()
 ["pa_heavenly"]={r6=true,h={{n="Part",cf={7,0,1.5,0,1,0,0,0,1,0,0,0,1},s={2,1,1,1},k={{c="P",n="2",p={Acceleration={2,0,4,0},Color={6,0,0.6667,0.3333,1,1,0.6667,0.3333,1},Drag=5,FlipbookFramerate={4,25,25},FlipbookLayout="Grid8x8",FlipbookStartRandom=true,Lifetime={4,0.5,0.75},LightEmission=1,LightInfluence=1,LockedToPart=true,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,0.257,0,0.4982,0.5533,0,1,0,0},Speed={4,1.5,1.5},SpreadAngle={3,360,360},Texture="rbxassetid://9173527444",Transparency={5,0,1,0,0.04863,0.6938,0,0.1025,0.4688,0,0.1501,0.3062,0,0.2014,0.1625,0,0.24,0.0875,0,0.3039,0.09375,0,0.6739,0.1937,0,0.7262,0.2875,0,0.7849,0.4062,0,0.8531,0.575,0,0.9408,0.7875,0,1,1,0},ZOffset=-0.25},g="Particles"},{c="P",n="1",p={Acceleration={2,0,4,0},Color={6,0,0.9608,0.5294,1,1,0.9608,0.5294,1},Drag=5,FlipbookFramerate={4,10,10},FlipbookLayout="Grid4x4",FlipbookStartRandom=true,Lifetime={4,0.5,0.75},LightEmission=1,LightInfluence=1,LockedToPart=true,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,0.2567,0,0.4982,0.5533,0,1,0,0},Speed={4,1.5,1.5},SpreadAngle={3,360,360},Texture="rbxassetid://11989899750",Transparency={5,0,1,0,0.04863,0.6938,0,0.1025,0.4688,0,0.1501,0.3062,0,0.2014,0.1625,0,0.24,0.0875,0,0.3039,0.09375,0,0.6739,0.1937,0,0.7262,0.2875,0,0.7849,0.4062,0,0.8531,0.575,0,0.9408,0.7875,0,1,1,0},ZOffset=-0.25},g="Particles"},{c="P",n="4",p={Acceleration={2,0,4,0},Color={6,0,0.4549,0.2706,1,1,0.4549,0.2706,1},Drag=5,FlipbookFramerate={4,20,20},FlipbookLayout="Grid4x4",FlipbookStartRandom=true,Lifetime={4,0.5,0.75},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=32.5,RotSpeed={4,-50,50},Rotation={4,-360,360},Size={5,0,1.23,0,1,1.228,0},Speed={4,2,2},SpreadAngle={3,360,360},Texture="rbxassetid://12026515010",Transparency={5,0,1,0,0.1722,0.9667,0,0.3702,0.9033,0,0.5022,0.86,0,0.6582,0.9067,0,0.8182,0.96,0,1,1,0},ZOffset=-0.5},g="Particles"}}},{n="Left Leg",cf={7,-0.5,-2,0,1,0,0,0,1,0,0,0,1},s={2,1,2,1},k={{c="P",n="2",p={Acceleration={2,0,4,0},Color={6,0,0.6667,0.3333,1,1,0.6667,0.3333,1},Drag=5,FlipbookFramerate={4,25,25},FlipbookLayout="Grid8x8",FlipbookStartRandom=true,Lifetime={4,0.5,0.75},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=40,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,0.257,0,0.4982,0.5533,0,1,0,0},Speed={4,1.5,1.5},SpreadAngle={3,360,360},Texture="rbxassetid://9173527444",Transparency={5,0,1,0,0.04863,0.6938,0,0.1025,0.4688,0,0.1501,0.3062,0,0.2014,0.1625,0,0.24,0.0875,0,0.3039,0.09375,0,0.6739,0.1937,0,0.7262,0.2875,0,0.7849,0.4062,0,0.8531,0.575,0,0.9408,0.7875,0,1,1,0},ZOffset=-0.25},g="Particles"},{c="P",n="1",p={Acceleration={2,0,4,0},Color={6,0,0.9608,0.5294,1,1,0.9608,0.5294,1},Drag=5,FlipbookFramerate={4,10,10},FlipbookLayout="Grid4x4",FlipbookStartRandom=true,Lifetime={4,0.5,0.75},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=40,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,0.2567,0,0.4982,0.5533,0,1,0,0},Speed={4,1.5,1.5},SpreadAngle={3,360,360},Texture="rbxassetid://11989899750",Transparency={5,0,1,0,0.04863,0.6938,0,0.1025,0.4688,0,0.1501,0.3062,0,0.2014,0.1625,0,0.24,0.0875,0,0.3039,0.09375,0,0.6739,0.1937,0,0.7262,0.2875,0,0.7849,0.4062,0,0.8531,0.575,0,0.9408,0.7875,0,1,1,0},ZOffset=-0.25},g="Particles"},{c="P",n="4",p={Acceleration={2,0,4,0},Color={6,0,0.4549,0.2706,1,1,0.4549,0.2706,1},Drag=5,FlipbookFramerate={4,20,20},FlipbookLayout="Grid4x4",FlipbookStartRandom=true,Lifetime={4,0.5,0.75},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=32.5,RotSpeed={4,-50,50},Rotation={4,-360,360},Size={5,0,1.23,0,1,1.228,0},Speed={4,2,2},SpreadAngle={3,360,360},Texture="rbxassetid://12026515010",Transparency={5,0,1,0,0.1722,0.9667,0,0.3702,0.9033,0,0.5022,0.86,0,0.6582,0.9067,0,0.8182,0.96,0,1,1,0},ZOffset=-0.5},g="Particles"}}},{n="Left Arm",cf={7,-1.5,0,0,1,0,0,0,1,0,0,0,1},s={2,1,2,1},k={{c="P",n="1",p={Acceleration={2,0,4,0},Color={6,0,0.9608,0.5294,1,1,0.9608,0.5294,1},Drag=5,FlipbookFramerate={4,10,10},FlipbookLayout="Grid4x4",FlipbookStartRandom=true,Lifetime={4,0.5,0.75},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=40,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,0.2567,0,0.4982,0.5533,0,1,0,0},Speed={4,1.5,1.5},SpreadAngle={3,360,360},Texture="rbxassetid://11989899750",Transparency={5,0,1,0,0.04863,0.6938,0,0.1025,0.4688,0,0.1501,0.3062,0,0.2014,0.1625,0,0.24,0.0875,0,0.3039,0.09375,0,0.6739,0.1937,0,0.7262,0.2875,0,0.7849,0.4062,0,0.8531,0.575,0,0.9408,0.7875,0,1,1,0},ZOffset=-0.25},g="Particles"},{c="P",n="2",p={Acceleration={2,0,4,0},Color={6,0,0.6667,0.3333,1,1,0.6667,0.3333,1},Drag=5,FlipbookFramerate={4,25,25},FlipbookLayout="Grid8x8",FlipbookStartRandom=true,Lifetime={4,0.5,0.75},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=40,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,0.257,0,0.4982,0.5533,0,1,0,0},Speed={4,1.5,1.5},SpreadAngle={3,360,360},Texture="rbxassetid://9173527444",Transparency={5,0,1,0,0.04863,0.6938,0,0.1025,0.4688,0,0.1501,0.3062,0,0.2014,0.1625,0,0.24,0.0875,0,0.3039,0.09375,0,0.6739,0.1937,0,0.7262,0.2875,0,0.7849,0.4062,0,0.8531,0.575,0,0.9408,0.7875,0,1,1,0},ZOffset=-0.25},g="Particles"},{c="P",n="4",p={Acceleration={2,0,4,0},Color={6,0,0.4549,0.2706,1,1,0.4549,0.2706,1},Drag=5,FlipbookFramerate={4,20,20},FlipbookLayout="Grid4x4",FlipbookStartRandom=true,Lifetime={4,0.5,0.75},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=32.5,RotSpeed={4,-50,50},Rotation={4,-360,360},Size={5,0,1.23,0,1,1.228,0},Speed={4,2,2},SpreadAngle={3,360,360},Texture="rbxassetid://12026515010",Transparency={5,0,1,0,0.1722,0.9667,0,0.3702,0.9033,0,0.5022,0.86,0,0.6582,0.9067,0,0.8182,0.96,0,1,1,0},ZOffset=-0.5},g="Particles"}}},{n="Torso",cf={7,0,0,0,1,0,0,0,1,0,0,0,1},s={2,2,2,1},k={{c="P",n="2",p={Acceleration={2,0,4,0},Color={6,0,0.6667,0.3333,1,1,0.6667,0.3333,1},Drag=5,FlipbookFramerate={4,25,25},FlipbookLayout="Grid8x8",FlipbookStartRandom=true,Lifetime={4,0.5,0.75},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=40,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,0.257,0,0.4982,0.5533,0,1,0,0},Speed={4,1.5,1.5},SpreadAngle={3,360,360},Texture="rbxassetid://9173527444",Transparency={5,0,1,0,0.04863,0.6938,0,0.1025,0.4688,0,0.1501,0.3062,0,0.2014,0.1625,0,0.24,0.0875,0,0.3039,0.09375,0,0.6739,0.1937,0,0.7262,0.2875,0,0.7849,0.4062,0,0.8531,0.575,0,0.9408,0.7875,0,1,1,0},ZOffset=-0.25},g="Particles"},{c="P",n="1",p={Acceleration={2,0,4,0},Color={6,0,0.9608,0.5294,1,1,0.9608,0.5294,1},Drag=5,FlipbookFramerate={4,10,10},FlipbookLayout="Grid4x4",FlipbookStartRandom=true,Lifetime={4,0.5,0.75},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=40,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,0.2567,0,0.4982,0.5533,0,1,0,0},Speed={4,1.5,1.5},SpreadAngle={3,360,360},Texture="rbxassetid://11989899750",Transparency={5,0,1,0,0.04863,0.6938,0,0.1025,0.4688,0,0.1501,0.3062,0,0.2014,0.1625,0,0.24,0.0875,0,0.3039,0.09375,0,0.6739,0.1937,0,0.7262,0.2875,0,0.7849,0.4062,0,0.8531,0.575,0,0.9408,0.7875,0,1,1,0},ZOffset=-0.25},g="Particles"},{c="A",n="B",p={CFrame={7,0,-3,0,1,0,0,0,1,0,0,0,1}},i=1,k={{c="B",n="1",p={Color={6,0,0.5176,0.2745,0.6667,1,0.5176,0.2745,0.6667},FaceCamera=true,LightEmission=1,LightInfluence=1,Texture="rbxassetid://6045867277",TextureLength=0.1,TextureSpeed=0.5,Transparency={5,0,1,0,0.5,0.75,0,1,1,0},Width0=5,Width1=5,ZOffset=1.5},a=1,b=2,g="Beams"},{c="B",n="2",p={Color={6,0,0.4314,0.2392,1,1,0.4314,0.2392,1},FaceCamera=true,LightEmission=1,LightInfluence=1,Texture="rbxassetid://11975017454",TextureLength=0.1,TextureSpeed=0.5,Transparency={5,0,1,0,0.5,0.75,0,1,1,0},Width0=6,Width1=6,ZOffset=1.5},a=1,b=2,g="Beams"},{c="B",n="3",p={Color={6,0,0.6667,0.3333,1,1,0.6667,0.3333,1},FaceCamera=true,LightEmission=1,LightInfluence=1,Texture="rbxassetid://11290362515",TextureLength=0.1,TextureSpeed=0.5,Transparency={5,0,1,0,0.5,0.75,0,1,1,0},Width0=5,Width1=5,ZOffset=1.5},a=1,b=2,g="Beams"}}},{c="A",n="T",p={CFrame={7,0,2,0,1,0,0,0,1,0,0,0,1}},i=2},{c="P",n="4",p={Acceleration={2,0,4,0},Color={6,0,0.4549,0.2706,1,1,0.4549,0.2706,1},Drag=5,FlipbookFramerate={4,20,20},FlipbookLayout="Grid4x4",FlipbookStartRandom=true,Lifetime={4,0.5,0.75},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=32.5,RotSpeed={4,-50,50},Rotation={4,-360,360},Size={5,0,1.23,0,1,1.228,0},Speed={4,2,2},SpreadAngle={3,360,360},Texture="rbxassetid://12026515010",Transparency={5,0,1,0,0.1722,0.9667,0,0.3702,0.9033,0,0.5022,0.86,0,0.6582,0.9067,0,0.8182,0.96,0,1,1,0},ZOffset=-0.5},g="Particles"}}},{n="Right Leg",cf={7,0.5,-2,0,1,0,0,0,1,0,0,0,1},s={2,1,2,1},k={{c="P",n="2",p={Acceleration={2,0,4,0},Color={6,0,0.6667,0.3333,1,1,0.6667,0.3333,1},Drag=5,FlipbookFramerate={4,25,25},FlipbookLayout="Grid8x8",FlipbookStartRandom=true,Lifetime={4,0.5,0.75},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=40,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,0.257,0,0.4982,0.5533,0,1,0,0},Speed={4,1.5,1.5},SpreadAngle={3,360,360},Texture="rbxassetid://9173527444",Transparency={5,0,1,0,0.04863,0.6938,0,0.1025,0.4688,0,0.1501,0.3062,0,0.2014,0.1625,0,0.24,0.0875,0,0.3039,0.09375,0,0.6739,0.1937,0,0.7262,0.2875,0,0.7849,0.4062,0,0.8531,0.575,0,0.9408,0.7875,0,1,1,0},ZOffset=-0.25},g="Particles"},{c="P",n="1",p={Acceleration={2,0,4,0},Color={6,0,0.9608,0.5294,1,1,0.9608,0.5294,1},Drag=5,FlipbookFramerate={4,10,10},FlipbookLayout="Grid4x4",FlipbookStartRandom=true,Lifetime={4,0.5,0.75},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=40,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,0.2567,0,0.4982,0.5533,0,1,0,0},Speed={4,1.5,1.5},SpreadAngle={3,360,360},Texture="rbxassetid://11989899750",Transparency={5,0,1,0,0.04863,0.6938,0,0.1025,0.4688,0,0.1501,0.3062,0,0.2014,0.1625,0,0.24,0.0875,0,0.3039,0.09375,0,0.6739,0.1937,0,0.7262,0.2875,0,0.7849,0.4062,0,0.8531,0.575,0,0.9408,0.7875,0,1,1,0},ZOffset=-0.25},g="Particles"},{c="P",n="4",p={Acceleration={2,0,4,0},Color={6,0,0.4549,0.2706,1,1,0.4549,0.2706,1},Drag=5,FlipbookFramerate={4,20,20},FlipbookLayout="Grid4x4",FlipbookStartRandom=true,Lifetime={4,0.5,0.75},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=32.5,RotSpeed={4,-50,50},Rotation={4,-360,360},Size={5,0,1.23,0,1,1.228,0},Speed={4,2,2},SpreadAngle={3,360,360},Texture="rbxassetid://12026515010",Transparency={5,0,1,0,0.1722,0.9667,0,0.3702,0.9033,0,0.5022,0.86,0,0.6582,0.9067,0,0.8182,0.96,0,1,1,0},ZOffset=-0.5},g="Particles"}}},{n="Right Arm",cf={7,1.5,0,0,1,0,0,0,1,0,0,0,1},s={2,1,2,1},k={{c="P",n="2",p={Acceleration={2,0,4,0},Color={6,0,0.6667,0.3333,1,1,0.6667,0.3333,1},Drag=5,FlipbookFramerate={4,25,25},FlipbookLayout="Grid8x8",FlipbookStartRandom=true,Lifetime={4,0.5,0.75},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=40,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,0.257,0,0.4982,0.5533,0,1,0,0},Speed={4,1.5,1.5},SpreadAngle={3,360,360},Texture="rbxassetid://9173527444",Transparency={5,0,1,0,0.04863,0.6938,0,0.1025,0.4688,0,0.1501,0.3062,0,0.2014,0.1625,0,0.24,0.0875,0,0.3039,0.09375,0,0.6739,0.1937,0,0.7262,0.2875,0,0.7849,0.4062,0,0.8531,0.575,0,0.9408,0.7875,0,1,1,0},ZOffset=-0.25},g="Particles"},{c="P",n="1",p={Acceleration={2,0,4,0},Color={6,0,0.9608,0.5294,1,1,0.9608,0.5294,1},Drag=5,FlipbookFramerate={4,10,10},FlipbookLayout="Grid4x4",FlipbookStartRandom=true,Lifetime={4,0.5,0.75},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=40,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,0.2567,0,0.4982,0.5533,0,1,0,0},Speed={4,1.5,1.5},SpreadAngle={3,360,360},Texture="rbxassetid://11989899750",Transparency={5,0,1,0,0.04863,0.6938,0,0.1025,0.4688,0,0.1501,0.3062,0,0.2014,0.1625,0,0.24,0.0875,0,0.3039,0.09375,0,0.6739,0.1937,0,0.7262,0.2875,0,0.7849,0.4062,0,0.8531,0.575,0,0.9408,0.7875,0,1,1,0},ZOffset=-0.25},g="Particles"},{c="P",n="4",p={Acceleration={2,0,4,0},Color={6,0,0.4549,0.2706,1,1,0.4549,0.2706,1},Drag=5,FlipbookFramerate={4,20,20},FlipbookLayout="Grid4x4",FlipbookStartRandom=true,Lifetime={4,0.5,0.75},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=32.5,RotSpeed={4,-50,50},Rotation={4,-360,360},Size={5,0,1.23,0,1,1.228,0},Speed={4,2,2},SpreadAngle={3,360,360},Texture="rbxassetid://12026515010",Transparency={5,0,1,0,0.1722,0.9667,0,0.3702,0.9033,0,0.5022,0.86,0,0.6582,0.9067,0,0.8182,0.96,0,1,1,0},ZOffset=-0.5},g="Particles"}}}}},
 ["pa_mui"]={r6=true,h={{n="Left Arm",cf={7,-1.5,0,0,1,0,0,0,1,0,0,0,1},s={2,1,2,1},k={{c="P",n="Smoke3",p={Color={6,0,0,0.6667,1,1,0.6667,0.3333,1},Lifetime={4,5,6},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=25,RotSpeed={4,-50,50},Size={5,0,0.8,0.2,1,0.8,0.2},Speed={4,0,0},Texture="rbxassetid://1084987899",Transparency={5,0,1,0,0.1,0.99,0,0.9,0.99,0,1,1,0}},g="Smoke"},{c="P",n="Smoke2",p={Color={6,0,0,0.3333,1,0.5,0.7373,0.9569,1,1,0.3333,0,0.498},FlipbookFramerate={4,25,25},FlipbookLayout="Grid4x4",Lifetime={4,0.75,0.75},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=25,RotSpeed={4,-100,100},Rotation={4,-360,360},ShapeInOut="InAndOut",Size={5,0,1.412,0,1,0.7767,0},Speed={4,0.25,0.25},SpreadAngle={3,25,25},Texture="rbxassetid://12026515010",Transparency={5,0,1,0,0.4942,0.89,0,1,1,0}},g="Smoke"},{c="P",n="Flame",p={Color={6,0,0,0.3333,1,0.5,0.7373,0.9569,1,1,0.3333,0,0.498},Lifetime={4,1,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=35,RotSpeed={4,-100,100},Rotation={4,-360,360},ShapeInOut="InAndOut",ShapePartial=0.1,Size={5,0,0.35,0,1,0.35,0},Speed={4,0.125,0.125},SpreadAngle={3,360,360},Texture="rbxassetid://7451746284",Transparency={5,0,1,0,0.4986,0,0,1,1,0},ZOffset=-1},g="Fire"},{c="P",n="2",p={Color={6,0,0.3412,0.3725,1,1,0.3412,0.3725,1},Lifetime={4,1,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=35,RotSpeed={4,-100,100},Rotation={4,-360,360},ShapeInOut="InAndOut",ShapePartial=0.1,Size={5,0,0.8,0,1,0.8,0},Speed={4,0.1,0.1},SpreadAngle={3,360,360},Squash={5,0,-1,0,1,-1,0},Texture="rbxassetid://8012987204",Transparency={5,0,1,0,0.4986,0,0,1,1,0},ZOffset=-1},g="Particles"}}},{n="Left Leg",cf={7,-0.5,-2,0,1,0,0,0,1,0,0,0,1},s={2,1,2,1},k={{c="P",n="Smoke3",p={Color={6,0,0,0.6667,1,1,0.6667,0.3333,1},Lifetime={4,5,6},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=25,RotSpeed={4,-50,50},Size={5,0,0.8,0.2,1,0.8,0.2},Speed={4,0,0},Texture="rbxassetid://1084987899",Transparency={5,0,1,0,0.1,0.99,0,0.9,0.99,0,1,1,0}},g="Smoke"},{c="P",n="Smoke2",p={Color={6,0,0,0.3333,1,0.5,0.7373,0.9569,1,1,0.3333,0,0.498},FlipbookFramerate={4,25,25},FlipbookLayout="Grid4x4",Lifetime={4,0.75,0.75},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=25,RotSpeed={4,-100,100},Rotation={4,-360,360},ShapeInOut="InAndOut",Size={5,0,1.412,0,1,0.7767,0},Speed={4,0.25,0.25},SpreadAngle={3,25,25},Texture="rbxassetid://12026515010",Transparency={5,0,1,0,0.4942,0.89,0,1,1,0}},g="Smoke"},{c="P",n="Flame",p={Color={6,0,0,0.3333,1,0.5,0.7373,0.9569,1,1,0.3333,0,0.498},Lifetime={4,1,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=35,RotSpeed={4,-100,100},Rotation={4,-360,360},ShapeInOut="InAndOut",ShapePartial=0.1,Size={5,0,0.35,0,1,0.35,0},Speed={4,0.125,0.125},SpreadAngle={3,360,360},Texture="rbxassetid://7451746284",Transparency={5,0,1,0,0.4986,0,0,1,1,0},ZOffset=-1},g="Fire"},{c="P",n="2",p={Color={6,0,0.3412,0.3725,1,1,0.3412,0.3725,1},Lifetime={4,1,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=35,RotSpeed={4,-100,100},Rotation={4,-360,360},ShapeInOut="InAndOut",ShapePartial=0.1,Size={5,0,0.8,0,1,0.8,0},Speed={4,0.1,0.1},SpreadAngle={3,360,360},Squash={5,0,-1,0,1,-1,0},Texture="rbxassetid://8012987204",Transparency={5,0,1,0,0.4986,0,0,1,1,0},ZOffset=-1},g="Particles"}}},{n="Right Arm",cf={7,1.5,0,0,1,0,0,0,1,0,0,0,1},s={2,1,2,1},k={{c="P",n="Smoke3",p={Color={6,0,0,0.6667,1,1,0.6667,0.3333,1},Lifetime={4,5,6},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=25,RotSpeed={4,-50,50},Size={5,0,0.8,0.2,1,0.8,0.2},Speed={4,0,0},Texture="rbxassetid://1084987899",Transparency={5,0,1,0,0.1,0.99,0,0.9,0.99,0,1,1,0}},g="Smoke"},{c="P",n="Smoke2",p={Color={6,0,0,0.3333,1,0.5,0.7373,0.9569,1,1,0.3333,0,0.498},FlipbookFramerate={4,25,25},FlipbookLayout="Grid4x4",Lifetime={4,0.75,0.75},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=25,RotSpeed={4,-100,100},Rotation={4,-360,360},ShapeInOut="InAndOut",Size={5,0,1.412,0,1,0.7767,0},Speed={4,0.25,0.25},SpreadAngle={3,25,25},Texture="rbxassetid://12026515010",Transparency={5,0,1,0,0.4942,0.89,0,1,1,0}},g="Smoke"},{c="P",n="Flame",p={Color={6,0,0,0.3333,1,0.5,0.7373,0.9569,1,1,0.3333,0,0.498},Lifetime={4,1,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=35,RotSpeed={4,-100,100},Rotation={4,-360,360},ShapeInOut="InAndOut",ShapePartial=0.1,Size={5,0,0.35,0,1,0.35,0},Speed={4,0.125,0.125},SpreadAngle={3,360,360},Texture="rbxassetid://7451746284",Transparency={5,0,1,0,0.4986,0,0,1,1,0},ZOffset=-1},g="Fire"},{c="P",n="2",p={Color={6,0,0.3412,0.3725,1,1,0.3412,0.3725,1},Lifetime={4,1,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=35,RotSpeed={4,-100,100},Rotation={4,-360,360},ShapeInOut="InAndOut",ShapePartial=0.1,Size={5,0,0.8,0,1,0.8,0},Speed={4,0.1,0.1},SpreadAngle={3,360,360},Squash={5,0,-1,0,1,-1,0},Texture="rbxassetid://8012987204",Transparency={5,0,1,0,0.4986,0,0,1,1,0},ZOffset=-1},g="Particles"}}},{n="Right Leg",cf={7,0.5,-2,0,1,0,0,0,1,0,0,0,1},s={2,1,2,1},k={{c="P",n="Smoke3",p={Color={6,0,0,0.6667,1,1,0.6667,0.3333,1},Lifetime={4,5,6},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=25,RotSpeed={4,-50,50},Size={5,0,0.8,0.2,1,0.8,0.2},Speed={4,0,0},Texture="rbxassetid://1084987899",Transparency={5,0,1,0,0.1,0.99,0,0.9,0.99,0,1,1,0}},g="Smoke"},{c="P",n="Smoke2",p={Color={6,0,0,0.3333,1,0.5,0.7373,0.9569,1,1,0.3333,0,0.498},FlipbookFramerate={4,25,25},FlipbookLayout="Grid4x4",Lifetime={4,0.75,0.75},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=25,RotSpeed={4,-100,100},Rotation={4,-360,360},ShapeInOut="InAndOut",Size={5,0,1.412,0,1,0.7767,0},Speed={4,0.25,0.25},SpreadAngle={3,25,25},Texture="rbxassetid://12026515010",Transparency={5,0,1,0,0.4942,0.89,0,1,1,0}},g="Smoke"},{c="P",n="Flame",p={Color={6,0,0,0.3333,1,0.5,0.7373,0.9569,1,1,0.3333,0,0.498},Lifetime={4,1,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=35,RotSpeed={4,-100,100},Rotation={4,-360,360},ShapeInOut="InAndOut",ShapePartial=0.1,Size={5,0,0.35,0,1,0.35,0},Speed={4,0.125,0.125},SpreadAngle={3,360,360},Texture="rbxassetid://7451746284",Transparency={5,0,1,0,0.4986,0,0,1,1,0},ZOffset=-1},g="Fire"},{c="P",n="2",p={Color={6,0,0.3412,0.3725,1,1,0.3412,0.3725,1},Lifetime={4,1,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=35,RotSpeed={4,-100,100},Rotation={4,-360,360},ShapeInOut="InAndOut",ShapePartial=0.1,Size={5,0,0.8,0,1,0.8,0},Speed={4,0.1,0.1},SpreadAngle={3,360,360},Squash={5,0,-1,0,1,-1,0},Texture="rbxassetid://8012987204",Transparency={5,0,1,0,0.4986,0,0,1,1,0},ZOffset=-1},g="Particles"}}},{n="Part",cf={7,0,1.5,0,1,0,0,0,1,0,0,0,1},s={2,1,1,1},k={{c="P",n="Smoke3",p={Color={6,0,0,0.6667,1,1,0.6667,0.3333,1},Lifetime={4,5,6},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=12.5,RotSpeed={4,-50,50},Size={5,0,0.8,0.2,1,0.8,0.2},Speed={4,0,0},Texture="rbxassetid://1084987899",Transparency={5,0,1,0,0.1,0.99,0,0.9,0.99,0,1,1,0}},g="Smoke"},{c="P",n="Smoke2",p={Color={6,0,0,0.3333,1,0.5,0.7373,0.9569,1,1,0.3333,0,0.498},FlipbookFramerate={4,25,25},FlipbookLayout="Grid4x4",Lifetime={4,0.75,0.75},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=12.5,RotSpeed={4,-100,100},Rotation={4,-360,360},ShapeInOut="InAndOut",Size={5,0,1.412,0,1,0.7767,0},Speed={4,0.25,0.25},SpreadAngle={3,25,25},Texture="rbxassetid://12026515010",Transparency={5,0,1,0,0.4942,0.89,0,1,1,0}},g="Smoke"},{c="P",n="2",p={Color={6,0,0.3412,0.3725,1,1,0.3412,0.3725,1},Lifetime={4,1,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=35,RotSpeed={4,-100,100},Rotation={4,-360,360},ShapeInOut="InAndOut",ShapePartial=0.1,Size={5,0,0.8,0,1,0.8,0},Speed={4,0.1,0.1},SpreadAngle={3,360,360},Squash={5,0,-1,0,1,-1,0},Texture="rbxassetid://8012987204",Transparency={5,0,1,0,0.4986,0,0,1,1,0},ZOffset=-1},g="Particles"},{c="P",n="Flame",p={Color={6,0,0,0.3333,1,0.5,0.7373,0.9569,1,1,0.3333,0,0.498},Lifetime={4,1,1},LightEmission=1,LightInfluence=1,LockedToPart=true,RotSpeed={4,-100,100},Rotation={4,-360,360},ShapeInOut="InAndOut",ShapePartial=0.1,Size={5,0,0.35,0,1,0.35,0},Speed={4,0.125,0.125},SpreadAngle={3,360,360},Texture="rbxassetid://7451746284",Transparency={5,0,1,0,0.4986,0,0,1,1,0},ZOffset=-1},g="Fire"}}},{n="Torso",cf={7,0,0,0,1,0,0,0,1,0,0,0,1},s={2,2,2,1},k={{c="P",n="Smoke3",p={Color={6,0,0,0.6667,1,1,0.6667,0.3333,1},Lifetime={4,5,6},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=25,RotSpeed={4,-50,50},Size={5,0,0.8,0.2,1,0.8,0.2},Speed={4,0,0},Texture="rbxassetid://1084987899",Transparency={5,0,1,0,0.1,0.99,0,0.9,0.99,0,1,1,0}},g="Smoke"},{c="P",n="Smoke2",p={Color={6,0,0,0.3333,1,0.5,0.7373,0.9569,1,1,0.3333,0,0.498},FlipbookFramerate={4,25,25},FlipbookLayout="Grid4x4",Lifetime={4,0.75,0.75},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=25,RotSpeed={4,-100,100},Rotation={4,-360,360},ShapeInOut="InAndOut",Size={5,0,1.412,0,1,0.7767,0},Speed={4,0.25,0.25},SpreadAngle={3,25,25},Texture="rbxassetid://12026515010",Transparency={5,0,1,0,0.4942,0.89,0,1,1,0}},g="Smoke"},{c="A",n="Glow",i=1,k={{c="P",n="ParticleEmitter",p={Color={6,0,0.7373,0.7961,1,1,0.7373,0.7961,1},Lifetime={4,1,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=6,Size={5,0,0,0,1,3.375,0},Speed={4,0.125,0.125},SpreadAngle={3,360,360},Texture="rbxassetid://1075864321",Transparency={5,0,1,0,0.5,0,0,1,1,0}},g="Glow"}}},{c="P",n="Flame",p={Color={6,0,0,0.3333,1,0.5,0.7373,0.9569,1,1,0.3333,0,0.498},Lifetime={4,1,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=35,RotSpeed={4,-100,100},Rotation={4,-360,360},ShapeInOut="InAndOut",ShapePartial=0.1,Size={5,0,0.35,0,1,0.35,0},Speed={4,0.125,0.125},SpreadAngle={3,360,360},Texture="rbxassetid://7451746284",Transparency={5,0,1,0,0.4986,0,0,1,1,0},ZOffset=-1},g="Fire"},{c="A",n="Bottom",p={CFrame={7,0,-3.125,0,1,0,0,0,1,0,0,0,1}},i=2,k={{c="B",n="1",p={Color={6,0,0.5765,0.6353,1,1,0.5765,0.6353,1},FaceCamera=true,LightEmission=1,LightInfluence=1,Texture="rbxassetid://7061230679",TextureLength=0.1,TextureSpeed=-0.25,Transparency={5,0,1,0,0.5,0.8,0,1,1,0},Width0=5,Width1=5,ZOffset=1},a=2,b=3,g="Beams"},{c="B",n="2",p={Color={6,0,0.5765,0.6353,1,1,0.5765,0.6353,1},FaceCamera=true,LightEmission=1,LightInfluence=1,Texture="rbxassetid://6045867277",TextureLength=0.1,TextureSpeed=0.25,Transparency={5,0,1,0,0.5,0.5,0,1,1,0},Width0=5.25,Width1=5.25,ZOffset=1},a=2,b=3,g="Beams"},{c="B",n="3",p={Color={6,0,0.5765,0.6353,1,1,0.5765,0.6353,1},FaceCamera=true,LightEmission=1,LightInfluence=1,Texture="rbxassetid://6091474388",TextureLength=0.1,TextureSpeed=-0.25,Transparency={5,0,1,0,0.5,0.8,0,1,1,0},Width0=5,Width1=5,ZOffset=1},a=2,b=3,g="Beams"},{c="B",n="4",p={Color={6,0,0.5765,0.6353,1,1,0.5765,0.6353,1},FaceCamera=true,LightEmission=1,LightInfluence=1,Texture="rbxassetid://11975017454",Transparency={5,0,1,0,0.4989,0.3687,0,1,1,0},Width0=7,Width1=7,ZOffset=1},a=2,b=3,g="Beams"},{c="B",n="5",p={Color={6,0,0.5765,0.6353,1,1,0.5765,0.6353,1},FaceCamera=true,LightEmission=1,LightInfluence=1,Texture="rbxassetid://10811367080",TextureLength=0.1,Transparency={5,0,1,0,0.4989,0.3687,0,1,1,0},Width0=4,Width1=4,ZOffset=1},a=2,b=3,g="Beams"}}},{c="A",n="Top",p={CFrame={7,0,2.125,0,1,0,0,0,1,0,0,0,1}},i=3},{c="P",n="2",p={Color={6,0,0.3412,0.3725,1,1,0.3412,0.3725,1},Lifetime={4,1,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=35,RotSpeed={4,-100,100},Rotation={4,-360,360},ShapeInOut="InAndOut",ShapePartial=0.1,Size={5,0,0.8,0,1,0.8,0},Speed={4,0.1,0.1},SpreadAngle={3,360,360},Squash={5,0,-1,0,1,-1,0},Texture="rbxassetid://8012987204",Transparency={5,0,1,0,0.4986,0,0,1,1,0},ZOffset=-1},g="Particles"},{c="L",n="PointLight",p={Brightness=4,Color={1,0.3412,0.3725,1},Range=5},g="Light"}}},{n="Body Particles",cf={7,0,-1.25,0,1,0,0,0,1,0,0,0,1},s={2,4,3.5,1},k={{c="P",n="Sphere thingy",p={Color={6,0,1,1,1,0.5,0.6667,0.3333,1,1,0,0.6667,1},Lifetime={4,0.3,0.3},LightEmission=1,LightInfluence=1,LockedToPart=true,Orientation="VelocityParallel",Rate=25,Rotation={4,90,90},Size={5,0,0.1,0.1,1,0.1,0.1},Speed={4,8,8},Squash={5,0,-0.225,0,1,0.7875,0},Texture="rbxassetid://7216853129",Transparency={5,0,1,0,0.2,0,0,0.8,0,0,1,1,0},ZOffset=1},g="Orbs"},{c="P",n="Sphere thingy2",p={Color={6,0,1,1,1,0.5,0.6667,0.3333,1,1,0,0.6667,1},Lifetime={4,0.3,0.3},LightEmission=1,LightInfluence=1,LockedToPart=true,Orientation="VelocityParallel",Rate=25,Rotation={4,90,90},Size={5,0,0.1,0.1,1,0.1,0.1},Speed={4,8,8},Squash={5,0,-0.225,0,1,0.7875,0},Texture="rbxassetid://7216848401",Transparency={5,0,1,0,0.2,0,0,0.8,0,0,1,1,0},ZOffset=1},g="Orbs"},{c="P",n="Sphere thingy3",p={Color={6,0,1,1,1,0.5,0.6667,0.3333,1,1,0,0.6667,1},Lifetime={4,0.3,0.3},LightEmission=1,LightInfluence=1,LockedToPart=true,Orientation="VelocityParallel",Rate=5,RotSpeed={4,-50,50},Rotation={4,-360,360},Size={5,0,0.25,0,1,0.25,0},Speed={4,8,8},Squash={5,0,-0.225,0,1,0.7875,0},Texture="rbxassetid://11975015979",Transparency={5,0,1,0,0.2,0,0,0.8,0,0,1,1,0},ZOffset=1},g="Orbs"}}}}},
 ["pa_psychic"]={r6=true,h={{n="Head",cf={7,0,1.5,0,1,0,0,0,1,0,0,0,1},s={2,2,1,1},k={{c="P",n="2",p={Acceleration={2,0,1,0},Color={6,0,0.5333,0.1529,1,0.5519,0.298,0.3922,1,0.8149,0.5412,0.8784,1,1,0.5412,0.8784,1},FlipbookFramerate={4,15,15},FlipbookLayout="Grid4x4",Lifetime={4,0.75,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=15,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,0,0,0.4923,0.6467,0,1,0,0},Speed={4,1,1.25},SpreadAngle={3,360,360},Texture="rbxassetid://12026515010",ZOffset=-1},g="Particles"},{c="P",n="1",p={Acceleration={2,0,1,0},Color={6,0,0.5333,0.1529,1,0.4429,0.5204,0.1661,1,0.8339,0.298,0.3922,1,1,0.5412,0.8784,1},Lifetime={4,0.75,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=15,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,0,0,0.4923,0.6467,0,1,0,0},Speed={4,1,1.25},SpreadAngle={3,360,360},Texture="rbxassetid://13370275515",ZOffset=-1},g="Particles"}}},{n="Left Arm",cf={7,-1.5,0,0,1,0,0,0,1,0,0,0,1},s={2,1,2,1},k={{c="P",n="1",p={Acceleration={2,0,1,0},Color={6,0,0.5333,0.1529,1,0.4429,0.5204,0.1661,1,0.8339,0.298,0.3922,1,1,0.5412,0.8784,1},Lifetime={4,0.75,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=15,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,0,0,0.4923,0.6467,0,1,0,0},Speed={4,1,1.25},SpreadAngle={3,360,360},Texture="rbxassetid://13370275515",ZOffset=-1},g="Particles"},{c="P",n="2",p={Acceleration={2,0,1,0},Color={6,0,0.5333,0.1529,1,0.5519,0.298,0.3922,1,0.8149,0.5412,0.8784,1,1,0.5412,0.8784,1},FlipbookFramerate={4,15,15},FlipbookLayout="Grid4x4",Lifetime={4,0.75,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=15,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,0,0,0.4923,0.6467,0,1,0,0},Speed={4,1,1.25},SpreadAngle={3,360,360},Texture="rbxassetid://12026515010",ZOffset=-1},g="Particles"}}},{n="Left Leg",cf={7,-0.5,-2,0,1,0,0,0,1,0,0,0,1},s={2,1,2,1},k={{c="P",n="1",p={Acceleration={2,0,1,0},Color={6,0,0.5333,0.1529,1,0.4429,0.5204,0.1661,1,0.8339,0.298,0.3922,1,1,0.5412,0.8784,1},Lifetime={4,0.75,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=15,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,0,0,0.4923,0.6467,0,1,0,0},Speed={4,1,1.25},SpreadAngle={3,360,360},Texture="rbxassetid://13370275515",ZOffset=-1},g="Particles"},{c="P",n="2",p={Acceleration={2,0,1,0},Color={6,0,0.5333,0.1529,1,0.5519,0.298,0.3922,1,0.8149,0.5412,0.8784,1,1,0.5412,0.8784,1},FlipbookFramerate={4,15,15},FlipbookLayout="Grid4x4",Lifetime={4,0.75,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=15,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,0,0,0.4923,0.6467,0,1,0,0},Speed={4,1,1.25},SpreadAngle={3,360,360},Texture="rbxassetid://12026515010",ZOffset=-1},g="Particles"}}},{n="Right Arm",cf={7,1.5,0,0,1,0,0,0,1,0,0,0,1},s={2,1,2,1},k={{c="P",n="1",p={Acceleration={2,0,1,0},Color={6,0,0.5333,0.1529,1,0.4429,0.5204,0.1661,1,0.8339,0.298,0.3922,1,1,0.5412,0.8784,1},Lifetime={4,0.75,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=15,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,0,0,0.4923,0.6467,0,1,0,0},Speed={4,1,1.25},SpreadAngle={3,360,360},Texture="rbxassetid://13370275515",ZOffset=-1},g="Particles"},{c="P",n="2",p={Acceleration={2,0,1,0},Color={6,0,0.5333,0.1529,1,0.5519,0.298,0.3922,1,0.8149,0.5412,0.8784,1,1,0.5412,0.8784,1},FlipbookFramerate={4,15,15},FlipbookLayout="Grid4x4",Lifetime={4,0.75,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=15,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,0,0,0.4923,0.6467,0,1,0,0},Speed={4,1,1.25},SpreadAngle={3,360,360},Texture="rbxassetid://12026515010",ZOffset=-1},g="Particles"}}},{n="Right Leg",cf={7,0.5,-2,0,1,0,0,0,1,0,0,0,1},s={2,1,2,1},k={{c="P",n="1",p={Acceleration={2,0,1,0},Color={6,0,0.5333,0.1529,1,0.4429,0.5204,0.1661,1,0.8339,0.298,0.3922,1,1,0.5412,0.8784,1},Lifetime={4,0.75,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=15,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,0,0,0.4923,0.6467,0,1,0,0},Speed={4,1,1.25},SpreadAngle={3,360,360},Texture="rbxassetid://13370275515",ZOffset=-1},g="Particles"},{c="P",n="2",p={Acceleration={2,0,1,0},Color={6,0,0.5333,0.1529,1,0.5519,0.298,0.3922,1,0.8149,0.5412,0.8784,1,1,0.5412,0.8784,1},FlipbookFramerate={4,15,15},FlipbookLayout="Grid4x4",Lifetime={4,0.75,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=15,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,0,0,0.4923,0.6467,0,1,0,0},Speed={4,1,1.25},SpreadAngle={3,360,360},Texture="rbxassetid://12026515010",ZOffset=-1},g="Particles"}}},{n="Torso",cf={7,0,0,0,1,0,0,0,1,0,0,0,1},s={2,2,2,1},k={{c="A",n="Central",i=1,k={{c="P",n="2",p={Color={6,0,0.5333,0.1529,1,1,0.298,0.3922,1},Lifetime={4,1,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=4,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,0,0,1,14.14,0},Speed={4,0.001,0.001},Texture="rbxassetid://1084999891",Transparency={5,0,0,0,1,1,0}},g="Particles"},{c="P",n="1",p={Color={6,0,0.298,0.3922,1,1,0.298,0.3922,1},Lifetime={4,1,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=4,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,0,0,1,14.14,0},Speed={4,0.001,0.001},Texture="rbxassetid://11975019541",Transparency={5,0,0,0,1,1,0}},g="Particles"},{c="P",n="3",p={Color={6,0,0.6667,0.6667,1,1,0.6667,0.6667,1},Lifetime={4,0.5,0.5},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=5,RotSpeed={4,300,300},Rotation={4,-360,360},Size={5,0,0,0,1,10,0},Speed={4,0.001,0.001},SpreadAngle={3,35,35},Texture="rbxassetid://7387058218",Transparency={5,0,1,0,0.2,0.8,0,0.8,0.8,0,1,1,0}},g="Particles"},{c="P",n="lightning",p={Color={6,0,0.6667,0.6667,1,0.7249,0.5216,0.1647,1,1,0.6667,0.6667,1},FlipbookFramerate={4,25,25},FlipbookLayout="Grid4x4",FlipbookMode="Random",Lifetime={4,0.25,0.25},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=0.5,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,9,1,1,11.05,1},Speed={4,0.001,0.001},SpreadAngle={3,360,360},Squash={5,0,0,0,0.502,0.35,0,1,0,0},Texture="rbxassetid://12072303767",Transparency={5,0,1,0,0.05,0,0,0.1,1,0,0.15,0,0,0.2,1,0,0.25,0,0,0.3,1,0,0.35,0,0,0.4,1,0,0.45,0,0,0.501,1,0,0.55,0,0,0.6,1,0,0.65,0,0,0.7,1,0,0.75,0,0,0.8,1,0,0.85,0,0,0.9,1,0,1,1,0},ZOffset=-1},g="Lightning"},{c="P",n="4",p={Color={6,0,0.5216,0.1647,1,1,0.5216,0.1647,1},FlipbookFramerate={4,20,20},FlipbookLayout="Grid4x4",Lifetime={4,1,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=3,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,0,0,1,26.3,0},Speed={4,0.001,0.001},Texture="rbxassetid://13370267318",Transparency={5,0,0.5688,0,1,1,0}},g="Particles"}}},{c="P",n="1",p={Acceleration={2,0,1,0},Color={6,0,0.5333,0.1529,1,0.4429,0.5204,0.1661,1,0.8339,0.298,0.3922,1,1,0.5412,0.8784,1},Lifetime={4,0.75,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=15,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,0,0,0.4923,0.6467,0,1,0,0},Speed={4,1,1.25},SpreadAngle={3,360,360},Texture="rbxassetid://13370275515",ZOffset=-1},g="Particles"},{c="P",n="2",p={Acceleration={2,0,1,0},Color={6,0,0.5333,0.1529,1,0.5519,0.298,0.3922,1,0.8149,0.5412,0.8784,1,1,0.5412,0.8784,1},FlipbookFramerate={4,15,15},FlipbookLayout="Grid4x4",Lifetime={4,0.75,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=15,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,0,0,0.4923,0.6467,0,1,0,0},Speed={4,1,1.25},SpreadAngle={3,360,360},Texture="rbxassetid://12026515010",ZOffset=-1},g="Particles"},{c="L",n="PointLight",p={Brightness=2,Color={1,0.6667,0.6667,1}},g="Light"}}},{n="Central",cf={7,0,-2,0,1,0,0,0,1,0,0,0,1},s={2,1,1,1},k={{c="A",n="1",p={CFrame={7,0,0,0,-1,0,0,0,-1,0,0,0,1}},i=2},{c="A",n="2",p={CFrame={7,-4,4.657,-4,0.5,0.7071,0.5,-0.7071,0,0.7071,0.5,-0.7071,0.5}},i=3,k={{c="B",n="2",p={Color={6,0,0.298,0.3922,1,1,0.298,0.3922,1},FaceCamera=true,LightEmission=0.9,LightInfluence=1,Texture="rbxassetid://13370272316",TextureLength=0.7,TextureSpeed=-1,Transparency={5,0,1,0,1,0,0},Width0=10,ZOffset=-1.5},a=3,b=2,g="Beams"},{c="B",n="1",p={Color={6,0,0.5216,0.1647,1,1,0.5216,0.1647,1},FaceCamera=true,LightEmission=0.9,LightInfluence=1,Texture="rbxassetid://10811367080",TextureLength=0.1,TextureSpeed=-1,Transparency={5,0,1,0,1,0,0},Width0=10,ZOffset=-1.5},a=3,b=2,g="Beams"}}},{c="A",n="3",p={CFrame={7,4,4.657,4,-0.5,-0.7071,-0.5,-0.7071,0,0.7071,-0.5,0.7071,-0.5}},i=4,k={{c="B",n="2",p={Color={6,0,0.298,0.3922,1,1,0.298,0.3922,1},FaceCamera=true,LightEmission=0.9,LightInfluence=1,Texture="rbxassetid://13370272316",TextureLength=0.7,TextureSpeed=-1,Transparency={5,0,1,0,1,0,0},Width0=10,ZOffset=-1.5},a=4,b=2,g="Beams"},{c="B",n="1",p={Color={6,0,0.5216,0.1647,1,1,0.5216,0.1647,1},FaceCamera=true,LightEmission=0.9,LightInfluence=1,Texture="rbxassetid://10811367080",TextureLength=0.1,TextureSpeed=-1,Transparency={5,0,1,0,1,0,0},Width0=10,ZOffset=-1.5},a=4,b=2,g="Beams"}}},{c="A",n="4",p={CFrame={7,-4,4.657,4,0.5,-0.7071,0.5,-0.7071,0,0.7071,-0.5,-0.7071,-0.5}},i=5,k={{c="B",n="2",p={Color={6,0,0.298,0.3922,1,1,0.298,0.3922,1},FaceCamera=true,LightEmission=0.9,LightInfluence=1,Texture="rbxassetid://13370272316",TextureLength=0.7,TextureSpeed=-1,Transparency={5,0,1,0,1,0,0},Width0=10,ZOffset=-1.5},a=5,b=2,g="Beams"},{c="B",n="1",p={Color={6,0,0.5216,0.1647,1,1,0.5216,0.1647,1},FaceCamera=true,LightEmission=0.9,LightInfluence=1,Texture="rbxassetid://10811367080",TextureLength=0.1,TextureSpeed=-1,Transparency={5,0,1,0,1,0,0},Width0=10,ZOffset=-1.5},a=5,b=2,g="Beams"}}},{c="A",n="5",p={CFrame={7,4,4.657,-4,-0.5,0.7071,-0.5,-0.7071,0,0.7071,0.5,0.7071,0.5}},i=6,k={{c="B",n="2",p={Color={6,0,0.298,0.3922,1,1,0.298,0.3922,1},FaceCamera=true,LightEmission=0.9,LightInfluence=1,Texture="rbxassetid://13370272316",TextureLength=0.7,TextureSpeed=-1,Transparency={5,0,1,0,1,0,0},Width0=10,ZOffset=-1.5},a=6,b=2,g="Beams"},{c="B",n="1",p={Color={6,0,0.5216,0.1647,1,1,0.5216,0.1647,1},FaceCamera=true,LightEmission=0.9,LightInfluence=1,Texture="rbxassetid://10811367080",TextureLength=0.1,TextureSpeed=-1,Transparency={5,0,1,0,1,0,0},Width0=10,ZOffset=-1.5},a=6,b=2,g="Beams"}}},{c="A",n="6",p={CFrame={7,0,9,0,1,0,0,0,1,0,0,0,1}},i=7,k={{c="B",n="2",p={Color={6,0,0.298,0.3922,1,1,0.298,0.3922,1},FaceCamera=true,LightEmission=0.9,LightInfluence=1,Texture="rbxassetid://13370272316",TextureLength=0.7,TextureSpeed=-1,Transparency={5,0,1,0,1,0,0},Width0=8,ZOffset=-1},a=7,b=2,g="Beams"},{c="B",n="1",p={Color={6,0,0.5216,0.1647,1,1,0.5216,0.1647,1},FaceCamera=true,LightEmission=0.9,LightInfluence=1,Texture="rbxassetid://10811367080",TextureLength=0.1,TextureSpeed=-1,Transparency={5,0,1,0,1,0,0},Width0=10,ZOffset=-1.5},a=7,b=2,g="Beams"}}}}},{n="feet wind",cf={7,0,-2.5,0,1,0,0,0,1,0,0,0,1},s={2,1,1,1},k={{c="A",n="1",p={CFrame={7,-6.051,-0.375,-1.889,0,0.2588,-0.9659,1,0,0,0,-0.9659,-0.2588}},i=8},{c="A",n="2",p={CFrame={7,6.051,-0.375,1.889,0,-0.2588,0.9659,1,0,0,0,0.9659,0.2588}},i=9},{c="A",n="2",p={CFrame={7,0,-0.375,0,0,-1,0,1,0,0,0,0,1}},i=10,k={{c="B",n="1",p={LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://13378758969",TextureSpeed=-2,Transparency={5,0,1,0,0.5,0.95,0,1,1,0},Width0=7},a=9,b=10,g="Beams"}}},{c="A",n="4",p={CFrame={7,0,-0.375,0,0,0,-1,1,0,0,0,-1,0}},i=11,k={{c="B",n="1",p={LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://13378758969",TextureSpeed=-2,Transparency={5,0,1,0,0.5,0.95,0,1,1,0},Width0=7},a=13,b=11,g="Beams"}}},{c="A",n="3",p={CFrame={7,1.889,-0.375,-6.051,0,0.9659,0.2588,1,0,0,0,0.2588,-0.9659}},i=12},{c="A",n="4",p={CFrame={7,-1.889,-0.375,6.051,0,-0.9659,-0.2588,1,0,0,0,-0.2588,0.9659}},i=13},{c="A",n="3",p={CFrame={7,0,-0.375,0,0,0,1,1,0,0,0,1,0}},i=14,k={{c="B",n="1",p={LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://13378758969",TextureSpeed=-2,Transparency={5,0,1,0,0.5,0.95,0,1,1,0},Width0=7},a=12,b=14,g="Beams"}}},{c="A",n="1",p={CFrame={7,0,-0.375,0,0,1,0,1,0,0,0,0,-1}},i=15,k={{c="B",n="1",p={LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://13378758969",TextureSpeed=-2,Transparency={5,0,1,0,0.5,0.95,0,1,1,0},Width0=7},a=8,b=15,g="Beams"}}},{c="A",n="7",p={CFrame={7,-5.322,-0.375,3.65,0,-0.5,-0.866,1,0,0,0,-0.866,0.5}},i=16},{c="A",n="7",p={CFrame={7,0,-0.375,0,0,0.7071,-0.7071,1,0,0,0,-0.7071,-0.7071}},i=17,k={{c="B",n="1",p={LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://13378758969",TextureSpeed=-2,Transparency={5,0,1,0,0.5,0.95,0,1,1,0},Width0=7},a=16,b=17,g="Beams"}}},{c="A",n="6",p={CFrame={7,0,-0.375,0,0,-0.7071,0.7071,1,0,0,0,0.7071,0.7071}},i=18,k={{c="B",n="1",p={LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://13378758969",TextureSpeed=-2,Transparency={5,0,1,0,0.5,0.95,0,1,1,0},Width0=7},a=19,b=18,g="Beams"}}},{c="A",n="6",p={CFrame={7,5.322,-0.375,-3.65,0,0.5,0.866,1,0,0,0,0.866,-0.5}},i=19},{c="A",n="8",p={CFrame={7,0,-0.375,0,0,0.7071,0.7071,1,0,0,0,0.7071,-0.7071}},i=20,k={{c="B",n="1",p={LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://13378758969",TextureSpeed=-2,Transparency={5,0,1,0,0.5,0.95,0,1,1,0},Width0=7},a=21,b=20,g="Beams"}}},{c="A",n="8",p={CFrame={7,-3.65,-0.375,-5.322,0,0.866,-0.5,1,0,0,0,-0.5,-0.866}},i=21},{c="A",n="5",p={CFrame={7,3.65,-0.375,5.322,0,-0.866,0.5,1,0,0,0,0.5,0.866}},i=22},{c="A",n="5",p={CFrame={7,0,-0.375,0,0,-0.7071,-0.7071,1,0,0,0,-0.7071,0.7071}},i=23,k={{c="B",n="1",p={LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://13378758969",TextureSpeed=-2,Transparency={5,0,1,0,0.5,0.95,0,1,1,0},Width0=7},a=22,b=23,g="Beams"}}},{c="P",n="Rocks",p={Acceleration={2,0,2,0},FlipbookFramerate={4,5,5},FlipbookLayout="Grid4x4",Lifetime={4,2,2.25},LightEmission=0.25,LightInfluence=1,LockedToPart=true,Rate=5,Rotation={4,-360,360},Shape="Disc",ShapePartial=12,Size={5,0,0.125,0,0.5,0.25,0,1,0,0},Speed={4,1,1},SpreadAngle={3,35,35},Texture="rbxassetid://13378753362"},g="Particles"},{c="P",n="Rocks2",p={Acceleration={2,0,2,0},FlipbookFramerate={4,5,5},FlipbookLayout="Grid4x4",Lifetime={4,2,2.25},LightEmission=0.25,LightInfluence=1,LockedToPart=true,Rate=3,Rotation={4,-360,360},Shape="Disc",ShapePartial=12,Size={5,0,0.25,0,0.5,0.5,0,1,0.125,0},Speed={4,1,1},SpreadAngle={3,35,35},Texture="rbxassetid://13378753362"},g="Particles"}}},{n="Wind (Don't even try to make sense out of the attachments",cf={7,0,7.629e-06,0,1,0,0,0,1,0,0,0,1},s={2,12,12,12},k={{c="A",n="C2",p={CFrame={7,0,-2,-5.75,1,0,0,0,-0.866,-0.5,0,0.5,-0.866}},i=24,k={{c="B",n="Beam",p={CurveSize0=3.5,CurveSize1=3.5,LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://13378772116",TextureSpeed=-2.5,Transparency={5,0,0.95,0,1,0.95,0},Width0=2,Width1=2},a=24,b=26,g="Beams"}}},{c="A",n="C1",p={CFrame={7,-5.75,-2,0,0,0.5,-0.866,0,-0.866,-0.5,-1,0,0}},i=25,k={{c="B",n="Beam",p={CurveSize0=3.5,CurveSize1=3.5,LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://13378772116",TextureSpeed=-2.5,Transparency={5,0,0.95,0,1,0.95,0},Width0=2,Width1=2},a=25,b=24,g="Beams"}}},{c="A",n="C3",p={CFrame={7,5.75,-2,0,0,-0.5,0.866,0,-0.866,-0.5,1,0,0}},i=26,k={{c="B",n="Beam",p={CurveSize0=3.5,CurveSize1=3.5,LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://13378772116",TextureSpeed=-2.5,Transparency={5,0,0.95,0,1,0.95,0},Width0=2,Width1=2},a=26,b=27,g="Beams"}}},{c="A",n="C4",p={CFrame={7,0,-2,5.75,-1,0,0,0,-0.866,-0.5,0,-0.5,0.866}},i=27,k={{c="B",n="Beam",p={CurveSize0=3.5,CurveSize1=3.5,LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://13378772116",TextureSpeed=-2.5,Transparency={5,0,0.95,0,1,0.95,0},Width0=2,Width1=2},a=27,b=25,g="Beams"}}},{c="A",n="6B",p={CFrame={7,-3.052e-05,-6,0,-0.9659,0.2588,0,0,0,1,0.2588,0.9659,0}},i=28,k={{c="B",n="BM",p={CurveSize0=-6,LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://13378758969",TextureLength=10,TextureMode="Wrap",TextureSpeed=2,Transparency={5,0,1,0,0.5793,1,0,0.8,0.95,0,1,1,0},Width0=0,Width1=6},a=28,b=29,g="Beams"}}},{c="A",n="6M",p={CFrame={7,3,-7.629e-06,-5.196,-0.5,0.8365,-0.2241,0,0.2588,0.9659,0.866,0.483,-0.1294}},i=29,k={{c="B",n="MT",p={CurveSize1=6,LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://13378758969",TextureLength=10,TextureMode="Wrap",TextureSpeed=2,Transparency={5,0,1,0,0.2,0.95,0,0.9,1,0,1,1,0},Width0=6,Width1=2},a=29,b=30,g="Beams"}}},{c="A",n="6T",p={CFrame={7,-3.052e-05,6,0,0.2588,0.9659,0,0,0,1,0.9659,-0.2588,0}},i=30},{c="A",n="5B",p={CFrame={7,-6.104e-05,-6,-3.052e-05,0.9659,-0.2588,0,0,0,1,-0.2588,-0.9659,0}},i=31,k={{c="B",n="BM",p={CurveSize0=-6,LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://13378758969",TextureLength=10,TextureMode="Wrap",TextureSpeed=2,Transparency={5,0,1,0,0.5793,1,0,0.8,0.95,0,1,1,0},Width0=0,Width1=6},a=31,b=33,g="Beams"}}},{c="A",n="5T",p={CFrame={7,-3.052e-05,6,0,-0.2588,-0.9659,0,0,0,1,-0.9659,0.2588,0}},i=32},{c="A",n="5M",p={CFrame={7,-3,-7.629e-06,5.196,0.5,-0.8365,0.2241,0,0.2588,0.9659,-0.866,-0.483,0.1294}},i=33,k={{c="B",n="MT",p={CurveSize1=6,LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://13378758969",TextureLength=10,TextureMode="Wrap",TextureSpeed=2,Transparency={5,0,1,0,0.2,0.95,0,0.9,1,0,1,1,0},Width0=6,Width1=2},a=33,b=32,g="Beams"}}},{c="A",n="4T",p={CFrame={7,0,6,3.052e-05,-0.9659,-0.2588,0,0,0,1,-0.2588,0.9659,0}},i=34},{c="A",n="4M",p={CFrame={7,3,-7.629e-06,5.196,-0.5,-0.8365,0.2241,0,0.2588,0.9659,-0.866,0.483,-0.1294}},i=35,k={{c="B",n="MT",p={CurveSize1=6,LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://13378758969",TextureLength=10,TextureMode="Wrap",TextureSpeed=2,Transparency={5,0,1,0,0.2,0.95,0,0.9,1,0,1,1,0},Width0=6,Width1=2},a=35,b=34,g="Beams"}}},{c="A",n="4B",p={CFrame={7,-3.052e-05,-6,3.052e-05,0.2588,-0.9659,0,0,0,1,-0.9659,-0.2588,0}},i=36,k={{c="B",n="BM",p={CurveSize0=-6,LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://13378758969",TextureLength=10,TextureMode="Wrap",TextureSpeed=2,Transparency={5,0,1,0,0.5793,1,0,0.8,0.95,0,1,1,0},Width0=0,Width1=6},a=36,b=35,g="Beams"}}},{c="A",n="3T",p={CFrame={7,0,6,3.052e-05,0.9659,0.2588,0,0,0,1,0.2588,-0.9659,0}},i=37},{c="A",n="3M",p={CFrame={7,-3,-7.629e-06,-5.196,0.5,0.8365,-0.2241,0,0.2588,0.9659,0.866,-0.483,0.1294}},i=38,k={{c="B",n="MT",p={CurveSize1=6,LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://13378758969",TextureLength=10,TextureMode="Wrap",TextureSpeed=2,Transparency={5,0,1,0,0.2,0.95,0,0.9,1,0,1,1,0},Width0=6,Width1=2},a=38,b=37,g="Beams"}}},{c="A",n="3B",p={CFrame={7,6.104e-05,-6,3.052e-05,-0.2588,0.9659,0,0,0,1,0.9659,0.2588,0}},i=39,k={{c="B",n="BM",p={CurveSize0=-6,LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://13378758969",TextureLength=10,TextureMode="Wrap",TextureSpeed=2,Transparency={5,0,1,0,0.5793,1,0,0.8,0.95,0,1,1,0},Width0=0,Width1=6},a=39,b=38,g="Beams"}}},{c="A",n="2T",p={CFrame={7,0,6,0,-0.7071,0.7071,0,0,0,1,0.7071,0.7071,0}},i=40},{c="A",n="2M",p={CFrame={7,6,-7.629e-06,0,-1,0,0,0,0.2588,0.9659,0,0.9659,-0.2588}},i=41,k={{c="B",n="MT",p={CurveSize1=6,LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://13378758969",TextureLength=10,TextureMode="Wrap",TextureSpeed=2,Transparency={5,0,1,0,0.2,0.95,0,0.9,1,0,1,1,0},Width0=6,Width1=2},a=41,b=40,g="Beams"}}},{c="A",n="2B",p={CFrame={7,-1.526e-05,-6,3.052e-05,-0.7071,-0.7071,0,0,0,1,-0.7071,0.7071,0}},i=42,k={{c="B",n="BM",p={CurveSize0=-6,LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://13378758969",TextureLength=10,TextureMode="Wrap",TextureSpeed=2,Transparency={5,0,1,0,0.5793,1,0,0.8,0.95,0,1,1,0},Width0=0,Width1=6},a=42,b=41,g="Beams"}}},{c="A",n="1B",p={CFrame={7,1.526e-05,-6,-3.052e-05,0.7071,0.7071,0,0,0,1,0.7071,-0.7071,0}},i=43,k={{c="B",n="BM",p={CurveSize0=-6,LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://13378758969",TextureLength=10,TextureMode="Wrap",TextureSpeed=2,Transparency={5,0,1,0,0.5793,1,0,0.8,0.95,0,1,1,0},Width0=0,Width1=6},a=43,b=44,g="Beams"}}},{c="A",n="1M",p={CFrame={7,-6,-7.629e-06,0,1,0,0,0,0.2588,0.9659,0,-0.9659,0.2588}},i=44,k={{c="B",n="MT",p={CurveSize1=6,LightEmission=1,LightInfluence=1,Segments=100,Texture="rbxassetid://13378758969",TextureLength=10,TextureMode="Wrap",TextureSpeed=2,Transparency={5,0,1,0,0.2,0.95,0,0.9,1,0,1,1,0},Width0=6,Width1=2},a=44,b=45,g="Beams"}}},{c="A",n="1T",p={CFrame={7,0,6,0,0.7071,-0.7071,0,0,0,1,-0.7071,-0.7071,0}},i=45}}}}},
-["pa_psychicorbs"]={r6=true,h={{n="Torso",cf={7,0,0,0,1,0,0,0,1,0,0,0,1},s={2,2,2,1},k={{c="L",n="PointLight",p={Brightness=2.5,Color={1,0.5647,0.06667,1}},g="Light"},{c="A",n="Attachment7",p={CFrame={7,-2.121,0,-2.121,0.7071,0,0.7071,0,1,0,-0.7071,0,0.7071}},i=1,k={{c="P",n="Flame",p={Color={6,0,0.5686,0.07843,1,1,0.5686,0.07843,1},Drag=2,Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Rate=50,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5,0.4937,0,1,1,0},ZOffset=-0.01},g="Fire"},{c="P",n="Glow",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,Size={5,0,1.125,0,1,0.25,0},Speed={4,0,0},Texture="rbxassetid://9973574373",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Glow"},{c="P",n="Orb",p={Color={6,0,0,0,0,1,0,0,0},Lifetime={4,1,1},LightInfluence=1,LockedToPart=true,Rate=3,Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://1084982817"},g="Orbs"},{c="P",n="Outline",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,455,455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline2",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,-455,-455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline3",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.65,0,1,0.65,0},Speed={4,0,0},Texture="rbxassetid://10358044068",Transparency={5,0,1,0,0.4974,0.8875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Pulse",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,0.4,0.6},LightEmission=1,LockedToPart=true,Rate=15,Rotation={4,-360,360},Size={5,0,0,0,1,0.6875,0},Speed={4,0,0},Texture="rbxassetid://10357918337",Transparency={5,0,1,0,0.5005,0.875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Swirls",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.4375,0,1,0,0},Speed={4,0,0},Texture="rbxassetid://10357952493",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Zaps",p={Brightness=10,Color={6,0,0.502,0.06667,1,0.4654,0.5569,0.1686,1,1,0.502,0.06667,1},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.7,0.375,1,0.7,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.5,0.4625,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Zaps2",p={Brightness=4.5,Color={6,0,0,0,0,1,0,0,0},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.5,0.375,1,0.5,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.4989,0.1438,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Flame2",p={Color={6,0,0,0,0,1,0,0,0},Drag=2,Lifetime={4,0.8,1},LockedToPart=true,Rate=10,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5021,0.325,0,1,1,0},ZOffset=-0.01},g="Fire"}}},{c="A",n="Attachment1",p={CFrame={7,0,0,-3,1,0,0,0,1,0,0,0,1}},i=2,k={{c="P",n="Flame",p={Color={6,0,0.5686,0.07843,1,1,0.5686,0.07843,1},Drag=2,Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Rate=50,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5,0.4937,0,1,1,0},ZOffset=-0.01},g="Fire"},{c="P",n="Glow",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,Size={5,0,1.125,0,1,0.25,0},Speed={4,0,0},Texture="rbxassetid://9973574373",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Glow"},{c="P",n="Orb",p={Color={6,0,0,0,0,1,0,0,0},Lifetime={4,1,1},LightInfluence=1,LockedToPart=true,Rate=3,Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://1084982817"},g="Orbs"},{c="P",n="Outline",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,455,455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline2",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,-455,-455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline3",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.65,0,1,0.65,0},Speed={4,0,0},Texture="rbxassetid://10358044068",Transparency={5,0,1,0,0.4974,0.8875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Pulse",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,0.4,0.6},LightEmission=1,LockedToPart=true,Rate=15,Rotation={4,-360,360},Size={5,0,0,0,1,0.6875,0},Speed={4,0,0},Texture="rbxassetid://10357918337",Transparency={5,0,1,0,0.5005,0.875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Swirls",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.4375,0,1,0,0},Speed={4,0,0},Texture="rbxassetid://10357952493",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Zaps",p={Brightness=10,Color={6,0,0.502,0.06667,1,0.4654,0.5569,0.1686,1,1,0.502,0.06667,1},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.7,0.375,1,0.7,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.5,0.4625,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Zaps2",p={Brightness=4.5,Color={6,0,0,0,0,1,0,0,0},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.5,0.375,1,0.5,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.4989,0.1438,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Flame2",p={Color={6,0,0,0,0,1,0,0,0},Drag=2,Lifetime={4,0.8,1},LockedToPart=true,Rate=10,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5021,0.325,0,1,1,0},ZOffset=-0.01},g="Fire"}}},{c="A",n="Attachment8",p={CFrame={7,2.121,0,2.121,0.7071,0,0.7071,0,1,0,-0.7071,0,0.7071}},i=3,k={{c="P",n="Flame",p={Color={6,0,0.5686,0.07843,1,1,0.5686,0.07843,1},Drag=2,Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Rate=50,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5,0.4937,0,1,1,0},ZOffset=-0.01},g="Fire"},{c="P",n="Glow",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,Size={5,0,1.125,0,1,0.25,0},Speed={4,0,0},Texture="rbxassetid://9973574373",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Glow"},{c="P",n="Orb",p={Color={6,0,0,0,0,1,0,0,0},Lifetime={4,1,1},LightInfluence=1,LockedToPart=true,Rate=3,Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://1084982817"},g="Orbs"},{c="P",n="Outline",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,455,455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline2",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,-455,-455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline3",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.65,0,1,0.65,0},Speed={4,0,0},Texture="rbxassetid://10358044068",Transparency={5,0,1,0,0.4974,0.8875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Pulse",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,0.4,0.6},LightEmission=1,LockedToPart=true,Rate=15,Rotation={4,-360,360},Size={5,0,0,0,1,0.6875,0},Speed={4,0,0},Texture="rbxassetid://10357918337",Transparency={5,0,1,0,0.5005,0.875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Swirls",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.4375,0,1,0,0},Speed={4,0,0},Texture="rbxassetid://10357952493",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Zaps",p={Brightness=10,Color={6,0,0.502,0.06667,1,0.4654,0.5569,0.1686,1,1,0.502,0.06667,1},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.7,0.375,1,0.7,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.5,0.4625,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Zaps2",p={Brightness=4.5,Color={6,0,0,0,0,1,0,0,0},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.5,0.375,1,0.5,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.4989,0.1438,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Flame2",p={Color={6,0,0,0,0,1,0,0,0},Drag=2,Lifetime={4,0.8,1},LockedToPart=true,Rate=10,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5021,0.325,0,1,1,0},ZOffset=-0.01},g="Fire"}}},{c="A",n="Attachment2",p={CFrame={7,0,0,3,1,0,0,0,1,0,0,0,1}},i=4,k={{c="P",n="Flame",p={Color={6,0,0.5686,0.07843,1,1,0.5686,0.07843,1},Drag=2,Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Rate=50,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5,0.4937,0,1,1,0},ZOffset=-0.01},g="Fire"},{c="P",n="Glow",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,Size={5,0,1.125,0,1,0.25,0},Speed={4,0,0},Texture="rbxassetid://9973574373",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Glow"},{c="P",n="Orb",p={Color={6,0,0,0,0,1,0,0,0},Lifetime={4,1,1},LightInfluence=1,LockedToPart=true,Rate=3,Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://1084982817"},g="Orbs"},{c="P",n="Outline",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,455,455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline2",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,-455,-455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline3",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.65,0,1,0.65,0},Speed={4,0,0},Texture="rbxassetid://10358044068",Transparency={5,0,1,0,0.4974,0.8875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Pulse",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,0.4,0.6},LightEmission=1,LockedToPart=true,Rate=15,Rotation={4,-360,360},Size={5,0,0,0,1,0.6875,0},Speed={4,0,0},Texture="rbxassetid://10357918337",Transparency={5,0,1,0,0.5005,0.875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Swirls",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.4375,0,1,0,0},Speed={4,0,0},Texture="rbxassetid://10357952493",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Zaps",p={Brightness=10,Color={6,0,0.502,0.06667,1,0.4654,0.5569,0.1686,1,1,0.502,0.06667,1},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.7,0.375,1,0.7,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.5,0.4625,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Zaps2",p={Brightness=4.5,Color={6,0,0,0,0,1,0,0,0},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.5,0.375,1,0.5,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.4989,0.1438,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Flame2",p={Color={6,0,0,0,0,1,0,0,0},Drag=2,Lifetime={4,0.8,1},LockedToPart=true,Rate=10,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5021,0.325,0,1,1,0},ZOffset=-0.01},g="Fire"}}},{c="A",n="Attachment3",p={CFrame={7,-3,0,0,0,0,1,0,1,0,-1,0,0}},i=5,k={{c="P",n="Flame",p={Color={6,0,0.5686,0.07843,1,1,0.5686,0.07843,1},Drag=2,Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Rate=50,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5,0.4937,0,1,1,0},ZOffset=-0.01},g="Fire"},{c="P",n="Glow",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,Size={5,0,1.125,0,1,0.25,0},Speed={4,0,0},Texture="rbxassetid://9973574373",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Glow"},{c="P",n="Orb",p={Color={6,0,0,0,0,1,0,0,0},Lifetime={4,1,1},LightInfluence=1,LockedToPart=true,Rate=3,Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://1084982817"},g="Orbs"},{c="P",n="Outline",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,455,455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline2",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,-455,-455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline3",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.65,0,1,0.65,0},Speed={4,0,0},Texture="rbxassetid://10358044068",Transparency={5,0,1,0,0.4974,0.8875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Pulse",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,0.4,0.6},LightEmission=1,LockedToPart=true,Rate=15,Rotation={4,-360,360},Size={5,0,0,0,1,0.6875,0},Speed={4,0,0},Texture="rbxassetid://10357918337",Transparency={5,0,1,0,0.5005,0.875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Swirls",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.4375,0,1,0,0},Speed={4,0,0},Texture="rbxassetid://10357952493",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Zaps",p={Brightness=10,Color={6,0,0.502,0.06667,1,0.4654,0.5569,0.1686,1,1,0.502,0.06667,1},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.7,0.375,1,0.7,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.5,0.4625,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Zaps2",p={Brightness=4.5,Color={6,0,0,0,0,1,0,0,0},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.5,0.375,1,0.5,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.4989,0.1438,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Flame2",p={Color={6,0,0,0,0,1,0,0,0},Drag=2,Lifetime={4,0.8,1},LockedToPart=true,Rate=10,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5021,0.325,0,1,1,0},ZOffset=-0.01},g="Fire"}}},{c="A",n="Attachment5",p={CFrame={7,-2.121,0,2.121,-0.7071,0,0.7071,0,1,0,-0.7071,0,-0.7071}},i=6,k={{c="P",n="Flame",p={Color={6,0,0.5686,0.07843,1,1,0.5686,0.07843,1},Drag=2,Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Rate=50,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5,0.4937,0,1,1,0},ZOffset=-0.01},g="Fire"},{c="P",n="Glow",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,Size={5,0,1.125,0,1,0.25,0},Speed={4,0,0},Texture="rbxassetid://9973574373",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Glow"},{c="P",n="Orb",p={Color={6,0,0,0,0,1,0,0,0},Lifetime={4,1,1},LightInfluence=1,LockedToPart=true,Rate=3,Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://1084982817"},g="Orbs"},{c="P",n="Outline",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,455,455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline2",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,-455,-455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline3",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.65,0,1,0.65,0},Speed={4,0,0},Texture="rbxassetid://10358044068",Transparency={5,0,1,0,0.4974,0.8875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Pulse",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,0.4,0.6},LightEmission=1,LockedToPart=true,Rate=15,Rotation={4,-360,360},Size={5,0,0,0,1,0.6875,0},Speed={4,0,0},Texture="rbxassetid://10357918337",Transparency={5,0,1,0,0.5005,0.875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Swirls",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.4375,0,1,0,0},Speed={4,0,0},Texture="rbxassetid://10357952493",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Zaps",p={Brightness=10,Color={6,0,0.502,0.06667,1,0.4654,0.5569,0.1686,1,1,0.502,0.06667,1},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.7,0.375,1,0.7,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.5,0.4625,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Zaps2",p={Brightness=4.5,Color={6,0,0,0,0,1,0,0,0},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.5,0.375,1,0.5,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.4989,0.1438,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Flame2",p={Color={6,0,0,0,0,1,0,0,0},Drag=2,Lifetime={4,0.8,1},LockedToPart=true,Rate=10,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5021,0.325,0,1,1,0},ZOffset=-0.01},g="Fire"}}},{c="A",n="Attachment4",p={CFrame={7,3,0,0,0,0,1,0,1,0,-1,0,0}},i=7,k={{c="P",n="Flame",p={Color={6,0,0.5686,0.07843,1,1,0.5686,0.07843,1},Drag=2,Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Rate=50,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5,0.4937,0,1,1,0},ZOffset=-0.01},g="Fire"},{c="P",n="Glow",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,Size={5,0,1.125,0,1,0.25,0},Speed={4,0,0},Texture="rbxassetid://9973574373",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Glow"},{c="P",n="Orb",p={Color={6,0,0,0,0,1,0,0,0},Lifetime={4,1,1},LightInfluence=1,LockedToPart=true,Rate=3,Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://1084982817"},g="Orbs"},{c="P",n="Outline",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,455,455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline2",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,-455,-455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline3",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.65,0,1,0.65,0},Speed={4,0,0},Texture="rbxassetid://10358044068",Transparency={5,0,1,0,0.4974,0.8875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Pulse",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,0.4,0.6},LightEmission=1,LockedToPart=true,Rate=15,Rotation={4,-360,360},Size={5,0,0,0,1,0.6875,0},Speed={4,0,0},Texture="rbxassetid://10357918337",Transparency={5,0,1,0,0.5005,0.875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Swirls",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.4375,0,1,0,0},Speed={4,0,0},Texture="rbxassetid://10357952493",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Zaps",p={Brightness=10,Color={6,0,0.502,0.06667,1,0.4654,0.5569,0.1686,1,1,0.502,0.06667,1},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.7,0.375,1,0.7,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.5,0.4625,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Zaps2",p={Brightness=4.5,Color={6,0,0,0,0,1,0,0,0},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.5,0.375,1,0.5,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.4989,0.1438,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Flame2",p={Color={6,0,0,0,0,1,0,0,0},Drag=2,Lifetime={4,0.8,1},LockedToPart=true,Rate=10,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5021,0.325,0,1,1,0},ZOffset=-0.01},g="Fire"}}},{c="A",n="Attachment6",p={CFrame={7,2.121,0,-2.121,-0.7071,0,0.7071,0,1,0,-0.7071,0,-0.7071}},i=8,k={{c="P",n="Flame",p={Color={6,0,0.5686,0.07843,1,1,0.5686,0.07843,1},Drag=2,Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Rate=50,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5,0.4937,0,1,1,0},ZOffset=-0.01},g="Fire"},{c="P",n="Glow",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,Size={5,0,1.125,0,1,0.25,0},Speed={4,0,0},Texture="rbxassetid://9973574373",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Glow"},{c="P",n="Orb",p={Color={6,0,0,0,0,1,0,0,0},Lifetime={4,1,1},LightInfluence=1,LockedToPart=true,Rate=3,Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://1084982817"},g="Orbs"},{c="P",n="Outline",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,455,455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline2",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,-455,-455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline3",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.65,0,1,0.65,0},Speed={4,0,0},Texture="rbxassetid://10358044068",Transparency={5,0,1,0,0.4974,0.8875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Pulse",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,0.4,0.6},LightEmission=1,LockedToPart=true,Rate=15,Rotation={4,-360,360},Size={5,0,0,0,1,0.6875,0},Speed={4,0,0},Texture="rbxassetid://10357918337",Transparency={5,0,1,0,0.5005,0.875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Swirls",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.4375,0,1,0,0},Speed={4,0,0},Texture="rbxassetid://10357952493",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Zaps",p={Brightness=10,Color={6,0,0.502,0.06667,1,0.4654,0.5569,0.1686,1,1,0.502,0.06667,1},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.7,0.375,1,0.7,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.5,0.4625,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Zaps2",p={Brightness=4.5,Color={6,0,0,0,0,1,0,0,0},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.5,0.375,1,0.5,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.4989,0.1438,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Flame2",p={Color={6,0,0,0,0,1,0,0,0},Drag=2,Lifetime={4,0.8,1},LockedToPart=true,Rate=10,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5021,0.325,0,1,1,0},ZOffset=-0.01},g="Fire"}}}}}}},
+["pa_psychicorbs"]={r6=true,h={{n="Torso",cf={7,0,0,0,1,0,0,0,1,0,0,0,1},s={2,2,2,1},k={{c="L",n="PointLight",p={Brightness=2.5,Color={1,0.5647,0.06667,1}},g="Light"},{c="A",n="Attachment7",p={CFrame={7,-2.121,0,-2.121,0.7071,0,0.7071,0,1,0,-0.7071,0,0.7071}},i=1,k={{c="P",n="Flame",p={Color={6,0,0.5686,0.07843,1,1,0.5686,0.07843,1},Drag=2,Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Rate=50,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5,0.4937,0,1,1,0},ZOffset=-0.01},g="Fire"},{c="P",n="Glow",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,Size={5,0,1.125,0,1,0.25,0},Speed={4,0,0},Texture="rbxassetid://9973574373",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Glow"},{c="P",n="Orb",p={Color={6,0,0,0,0,1,0,0,0},Lifetime={4,1,1},LightInfluence=1,LockedToPart=true,Rate=3,Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://1084982817"},g="Orbs"},{c="P",n="Outline",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,455,455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline2",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,-455,-455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline3",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.65,0,1,0.65,0},Speed={4,0,0},Texture="rbxassetid://10358044068",Transparency={5,0,1,0,0.4974,0.8875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Static",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,0.4,0.6},LightEmission=1,LockedToPart=true,Rate=15,Rotation={4,-360,360},Size={5,0,0,0,1,0.6875,0},Speed={4,0,0},Texture="rbxassetid://10357918337",Transparency={5,0,1,0,0.5005,0.875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Swirls",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.4375,0,1,0,0},Speed={4,0,0},Texture="rbxassetid://10357952493",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Zaps",p={Brightness=10,Color={6,0,0.502,0.06667,1,0.4654,0.5569,0.1686,1,1,0.502,0.06667,1},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.7,0.375,1,0.7,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.5,0.4625,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Zaps2",p={Brightness=4.5,Color={6,0,0,0,0,1,0,0,0},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.5,0.375,1,0.5,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.4989,0.1438,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Flame2",p={Color={6,0,0,0,0,1,0,0,0},Drag=2,Lifetime={4,0.8,1},LockedToPart=true,Rate=10,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5021,0.325,0,1,1,0},ZOffset=-0.01},g="Fire"}}},{c="A",n="Attachment1",p={CFrame={7,0,0,-3,1,0,0,0,1,0,0,0,1}},i=2,k={{c="P",n="Flame",p={Color={6,0,0.5686,0.07843,1,1,0.5686,0.07843,1},Drag=2,Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Rate=50,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5,0.4937,0,1,1,0},ZOffset=-0.01},g="Fire"},{c="P",n="Glow",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,Size={5,0,1.125,0,1,0.25,0},Speed={4,0,0},Texture="rbxassetid://9973574373",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Glow"},{c="P",n="Orb",p={Color={6,0,0,0,0,1,0,0,0},Lifetime={4,1,1},LightInfluence=1,LockedToPart=true,Rate=3,Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://1084982817"},g="Orbs"},{c="P",n="Outline",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,455,455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline2",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,-455,-455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline3",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.65,0,1,0.65,0},Speed={4,0,0},Texture="rbxassetid://10358044068",Transparency={5,0,1,0,0.4974,0.8875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Static",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,0.4,0.6},LightEmission=1,LockedToPart=true,Rate=15,Rotation={4,-360,360},Size={5,0,0,0,1,0.6875,0},Speed={4,0,0},Texture="rbxassetid://10357918337",Transparency={5,0,1,0,0.5005,0.875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Swirls",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.4375,0,1,0,0},Speed={4,0,0},Texture="rbxassetid://10357952493",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Zaps",p={Brightness=10,Color={6,0,0.502,0.06667,1,0.4654,0.5569,0.1686,1,1,0.502,0.06667,1},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.7,0.375,1,0.7,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.5,0.4625,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Zaps2",p={Brightness=4.5,Color={6,0,0,0,0,1,0,0,0},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.5,0.375,1,0.5,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.4989,0.1438,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Flame2",p={Color={6,0,0,0,0,1,0,0,0},Drag=2,Lifetime={4,0.8,1},LockedToPart=true,Rate=10,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5021,0.325,0,1,1,0},ZOffset=-0.01},g="Fire"}}},{c="A",n="Attachment8",p={CFrame={7,2.121,0,2.121,0.7071,0,0.7071,0,1,0,-0.7071,0,0.7071}},i=3,k={{c="P",n="Flame",p={Color={6,0,0.5686,0.07843,1,1,0.5686,0.07843,1},Drag=2,Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Rate=50,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5,0.4937,0,1,1,0},ZOffset=-0.01},g="Fire"},{c="P",n="Glow",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,Size={5,0,1.125,0,1,0.25,0},Speed={4,0,0},Texture="rbxassetid://9973574373",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Glow"},{c="P",n="Orb",p={Color={6,0,0,0,0,1,0,0,0},Lifetime={4,1,1},LightInfluence=1,LockedToPart=true,Rate=3,Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://1084982817"},g="Orbs"},{c="P",n="Outline",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,455,455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline2",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,-455,-455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline3",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.65,0,1,0.65,0},Speed={4,0,0},Texture="rbxassetid://10358044068",Transparency={5,0,1,0,0.4974,0.8875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Static",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,0.4,0.6},LightEmission=1,LockedToPart=true,Rate=15,Rotation={4,-360,360},Size={5,0,0,0,1,0.6875,0},Speed={4,0,0},Texture="rbxassetid://10357918337",Transparency={5,0,1,0,0.5005,0.875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Swirls",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.4375,0,1,0,0},Speed={4,0,0},Texture="rbxassetid://10357952493",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Zaps",p={Brightness=10,Color={6,0,0.502,0.06667,1,0.4654,0.5569,0.1686,1,1,0.502,0.06667,1},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.7,0.375,1,0.7,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.5,0.4625,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Zaps2",p={Brightness=4.5,Color={6,0,0,0,0,1,0,0,0},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.5,0.375,1,0.5,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.4989,0.1438,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Flame2",p={Color={6,0,0,0,0,1,0,0,0},Drag=2,Lifetime={4,0.8,1},LockedToPart=true,Rate=10,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5021,0.325,0,1,1,0},ZOffset=-0.01},g="Fire"}}},{c="A",n="Attachment2",p={CFrame={7,0,0,3,1,0,0,0,1,0,0,0,1}},i=4,k={{c="P",n="Flame",p={Color={6,0,0.5686,0.07843,1,1,0.5686,0.07843,1},Drag=2,Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Rate=50,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5,0.4937,0,1,1,0},ZOffset=-0.01},g="Fire"},{c="P",n="Glow",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,Size={5,0,1.125,0,1,0.25,0},Speed={4,0,0},Texture="rbxassetid://9973574373",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Glow"},{c="P",n="Orb",p={Color={6,0,0,0,0,1,0,0,0},Lifetime={4,1,1},LightInfluence=1,LockedToPart=true,Rate=3,Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://1084982817"},g="Orbs"},{c="P",n="Outline",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,455,455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline2",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,-455,-455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline3",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.65,0,1,0.65,0},Speed={4,0,0},Texture="rbxassetid://10358044068",Transparency={5,0,1,0,0.4974,0.8875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Static",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,0.4,0.6},LightEmission=1,LockedToPart=true,Rate=15,Rotation={4,-360,360},Size={5,0,0,0,1,0.6875,0},Speed={4,0,0},Texture="rbxassetid://10357918337",Transparency={5,0,1,0,0.5005,0.875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Swirls",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.4375,0,1,0,0},Speed={4,0,0},Texture="rbxassetid://10357952493",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Zaps",p={Brightness=10,Color={6,0,0.502,0.06667,1,0.4654,0.5569,0.1686,1,1,0.502,0.06667,1},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.7,0.375,1,0.7,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.5,0.4625,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Zaps2",p={Brightness=4.5,Color={6,0,0,0,0,1,0,0,0},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.5,0.375,1,0.5,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.4989,0.1438,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Flame2",p={Color={6,0,0,0,0,1,0,0,0},Drag=2,Lifetime={4,0.8,1},LockedToPart=true,Rate=10,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5021,0.325,0,1,1,0},ZOffset=-0.01},g="Fire"}}},{c="A",n="Attachment3",p={CFrame={7,-3,0,0,0,0,1,0,1,0,-1,0,0}},i=5,k={{c="P",n="Flame",p={Color={6,0,0.5686,0.07843,1,1,0.5686,0.07843,1},Drag=2,Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Rate=50,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5,0.4937,0,1,1,0},ZOffset=-0.01},g="Fire"},{c="P",n="Glow",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,Size={5,0,1.125,0,1,0.25,0},Speed={4,0,0},Texture="rbxassetid://9973574373",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Glow"},{c="P",n="Orb",p={Color={6,0,0,0,0,1,0,0,0},Lifetime={4,1,1},LightInfluence=1,LockedToPart=true,Rate=3,Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://1084982817"},g="Orbs"},{c="P",n="Outline",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,455,455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline2",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,-455,-455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline3",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.65,0,1,0.65,0},Speed={4,0,0},Texture="rbxassetid://10358044068",Transparency={5,0,1,0,0.4974,0.8875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Static",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,0.4,0.6},LightEmission=1,LockedToPart=true,Rate=15,Rotation={4,-360,360},Size={5,0,0,0,1,0.6875,0},Speed={4,0,0},Texture="rbxassetid://10357918337",Transparency={5,0,1,0,0.5005,0.875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Swirls",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.4375,0,1,0,0},Speed={4,0,0},Texture="rbxassetid://10357952493",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Zaps",p={Brightness=10,Color={6,0,0.502,0.06667,1,0.4654,0.5569,0.1686,1,1,0.502,0.06667,1},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.7,0.375,1,0.7,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.5,0.4625,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Zaps2",p={Brightness=4.5,Color={6,0,0,0,0,1,0,0,0},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.5,0.375,1,0.5,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.4989,0.1438,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Flame2",p={Color={6,0,0,0,0,1,0,0,0},Drag=2,Lifetime={4,0.8,1},LockedToPart=true,Rate=10,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5021,0.325,0,1,1,0},ZOffset=-0.01},g="Fire"}}},{c="A",n="Attachment5",p={CFrame={7,-2.121,0,2.121,-0.7071,0,0.7071,0,1,0,-0.7071,0,-0.7071}},i=6,k={{c="P",n="Flame",p={Color={6,0,0.5686,0.07843,1,1,0.5686,0.07843,1},Drag=2,Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Rate=50,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5,0.4937,0,1,1,0},ZOffset=-0.01},g="Fire"},{c="P",n="Glow",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,Size={5,0,1.125,0,1,0.25,0},Speed={4,0,0},Texture="rbxassetid://9973574373",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Glow"},{c="P",n="Orb",p={Color={6,0,0,0,0,1,0,0,0},Lifetime={4,1,1},LightInfluence=1,LockedToPart=true,Rate=3,Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://1084982817"},g="Orbs"},{c="P",n="Outline",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,455,455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline2",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,-455,-455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline3",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.65,0,1,0.65,0},Speed={4,0,0},Texture="rbxassetid://10358044068",Transparency={5,0,1,0,0.4974,0.8875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Static",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,0.4,0.6},LightEmission=1,LockedToPart=true,Rate=15,Rotation={4,-360,360},Size={5,0,0,0,1,0.6875,0},Speed={4,0,0},Texture="rbxassetid://10357918337",Transparency={5,0,1,0,0.5005,0.875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Swirls",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.4375,0,1,0,0},Speed={4,0,0},Texture="rbxassetid://10357952493",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Zaps",p={Brightness=10,Color={6,0,0.502,0.06667,1,0.4654,0.5569,0.1686,1,1,0.502,0.06667,1},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.7,0.375,1,0.7,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.5,0.4625,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Zaps2",p={Brightness=4.5,Color={6,0,0,0,0,1,0,0,0},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.5,0.375,1,0.5,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.4989,0.1438,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Flame2",p={Color={6,0,0,0,0,1,0,0,0},Drag=2,Lifetime={4,0.8,1},LockedToPart=true,Rate=10,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5021,0.325,0,1,1,0},ZOffset=-0.01},g="Fire"}}},{c="A",n="Attachment4",p={CFrame={7,3,0,0,0,0,1,0,1,0,-1,0,0}},i=7,k={{c="P",n="Flame",p={Color={6,0,0.5686,0.07843,1,1,0.5686,0.07843,1},Drag=2,Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Rate=50,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5,0.4937,0,1,1,0},ZOffset=-0.01},g="Fire"},{c="P",n="Glow",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,Size={5,0,1.125,0,1,0.25,0},Speed={4,0,0},Texture="rbxassetid://9973574373",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Glow"},{c="P",n="Orb",p={Color={6,0,0,0,0,1,0,0,0},Lifetime={4,1,1},LightInfluence=1,LockedToPart=true,Rate=3,Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://1084982817"},g="Orbs"},{c="P",n="Outline",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,455,455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline2",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,-455,-455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline3",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.65,0,1,0.65,0},Speed={4,0,0},Texture="rbxassetid://10358044068",Transparency={5,0,1,0,0.4974,0.8875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Static",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,0.4,0.6},LightEmission=1,LockedToPart=true,Rate=15,Rotation={4,-360,360},Size={5,0,0,0,1,0.6875,0},Speed={4,0,0},Texture="rbxassetid://10357918337",Transparency={5,0,1,0,0.5005,0.875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Swirls",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.4375,0,1,0,0},Speed={4,0,0},Texture="rbxassetid://10357952493",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Zaps",p={Brightness=10,Color={6,0,0.502,0.06667,1,0.4654,0.5569,0.1686,1,1,0.502,0.06667,1},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.7,0.375,1,0.7,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.5,0.4625,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Zaps2",p={Brightness=4.5,Color={6,0,0,0,0,1,0,0,0},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.5,0.375,1,0.5,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.4989,0.1438,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Flame2",p={Color={6,0,0,0,0,1,0,0,0},Drag=2,Lifetime={4,0.8,1},LockedToPart=true,Rate=10,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5021,0.325,0,1,1,0},ZOffset=-0.01},g="Fire"}}},{c="A",n="Attachment6",p={CFrame={7,2.121,0,-2.121,-0.7071,0,0.7071,0,1,0,-0.7071,0,-0.7071}},i=8,k={{c="P",n="Flame",p={Color={6,0,0.5686,0.07843,1,1,0.5686,0.07843,1},Drag=2,Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Rate=50,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5,0.4937,0,1,1,0},ZOffset=-0.01},g="Fire"},{c="P",n="Glow",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,Size={5,0,1.125,0,1,0.25,0},Speed={4,0,0},Texture="rbxassetid://9973574373",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Glow"},{c="P",n="Orb",p={Color={6,0,0,0,0,1,0,0,0},Lifetime={4,1,1},LightInfluence=1,LockedToPart=true,Rate=3,Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://1084982817"},g="Orbs"},{c="P",n="Outline",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,455,455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline2",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,-455,-455},Size={5,0,0.5,0,1,0.5,0},Speed={4,0,0},Texture="rbxassetid://10558510611",Transparency={5,0,1,0,0.5,0,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Outline3",p={Brightness=10,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.65,0,1,0.65,0},Speed={4,0,0},Texture="rbxassetid://10358044068",Transparency={5,0,1,0,0.4974,0.8875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Static",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,0.4,0.6},LightEmission=1,LockedToPart=true,Rate=15,Rotation={4,-360,360},Size={5,0,0,0,1,0.6875,0},Speed={4,0,0},Texture="rbxassetid://10357918337",Transparency={5,0,1,0,0.5005,0.875,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Swirls",p={Brightness=5,Color={6,0,0.3647,0.2039,1,0.4948,0.4745,0.102,1,1,0.3647,0.2039,1},Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=5,RotSpeed={4,180,180},Size={5,0,0.4375,0,1,0,0},Speed={4,0,0},Texture="rbxassetid://10357952493",Transparency={5,0,1,0,0.4989,0.6812,0,1,1,0},ZOffset=1},g="Particles"},{c="P",n="Zaps",p={Brightness=10,Color={6,0,0.502,0.06667,1,0.4654,0.5569,0.1686,1,1,0.502,0.06667,1},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LightEmission=1,LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.7,0.375,1,0.7,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.5,0.4625,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Zaps2",p={Brightness=4.5,Color={6,0,0,0,0,1,0,0,0},FlipbookFramerate={4,16.2,16.2},FlipbookLayout="Grid4x4",Lifetime={4,0.8,1},LockedToPart=true,Orientation="VelocityParallel",Rate=10,Rotation={4,-360,360},Size={5,0,0.5,0.375,1,0.5,0.375},Speed={4,0.01,0.01},SpreadAngle={3,360,360},Texture="rbxassetid://11492870634",Transparency={5,0,1,0,0.4989,0.1438,0,1,1,0},ZOffset=-0.01},g="Particles"},{c="P",n="Flame2",p={Color={6,0,0,0,0,1,0,0,0},Drag=2,Lifetime={4,0.8,1},LockedToPart=true,Rate=10,Rotation={4,-360,360},Size={5,0,0.8125,0,1,0,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://6706234595",Transparency={5,0,1,0,0.5021,0.325,0,1,1,0},ZOffset=-0.01},g="Fire"}}}}}}},
 ["pa_nano"]={r6=true,h={{n="Torso",cf={7,0,0,0,1,0,0,0,1,0,0,0,1},s={2,2,2,1},k={{c="A",n="Attachment",p={CFrame={7,0,1,1,1,0,0,0,0.2588,-0.9659,0,0.9659,0.2588}},i=1,k={{c="B",n="Beam",p={Color={6,0,0.2667,1,0.2275,1,0.2667,1,0.2275},FaceCamera=true,LightEmission=1,LightInfluence=1,Texture="rbxassetid://6091474388",TextureLength=0.2,Transparency={5,0,1,0,0.4,0,0,0.4,0,0,1,1,0},Width0=3.5,Width1=0.5},a=1,b=2,g="Beams"},{c="B",n="Beam",p={Color={6,0,0.2667,1,0.2275,1,0.2667,1,0.2275},FaceCamera=true,LightEmission=1,LightInfluence=1,Texture="rbxassetid://7151778302",Transparency={5,0,1,0,0.3,0,0,0.6,1,0,1,1,0},Width0=11,Width1=8},a=1,b=2,g="Beams"},{c="P",n="ParticleEmitter",p={Color={6,0,0.2667,1,0.2275,1,0.2667,1,0.2275},Lifetime={4,0.5,0.5},LightEmission=1,LightInfluence=1,LockedToPart=true,Orientation="VelocityPerpendicular",Rate=2,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,1.687,0,1,4.5,0},Speed={4,2,2},SpreadAngle={3,2,2},Texture="rbxassetid://7216854379",Transparency={5,0,1,0,0.5,0,0,1,1,0}},g="Particles"},{c="P",n="ParticleEmitter",p={Color={6,0,0.2667,1,0.2275,1,0.2667,1,0.2275},Lifetime={4,0.5,0.5},LightEmission=1,LightInfluence=1,LockedToPart=true,Orientation="VelocityPerpendicular",Rate=4,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,1.687,0,1,4.062,0},Speed={4,3,3},SpreadAngle={3,2,2},Texture="rbxassetid://1084955012",Transparency={5,0,1,0,0.5,0,0,1,1,0}},g="Particles"},{c="P",n="ParticleEmitter",p={Color={6,0,0.2667,1,0.2275,1,0.2667,1,0.2275},Lifetime={4,0.5,0.5},LightEmission=1,LightInfluence=1,LockedToPart=true,Orientation="VelocityPerpendicular",Rate=2.5,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,1.687,0,1,4.5,0},Speed={4,2,2},SpreadAngle={3,2,2},Texture="rbxassetid://2058077944",Transparency={5,0,1,0,0.5,0,0,1,1,0}},g="Particles"},{c="P",n="Glow",p={Color={6,0,0.2667,1,0.2275,1,0.2667,1,0.2275},Lifetime={4,2,2},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=3,Size={5,0,2,0,0.5,1,0,1,0.5,0},Speed={4,0.6,0.6},SpreadAngle={3,360,360},Squash={5,0,0,0.25,1,0,0.25},Texture="rbxassetid://1075864321",Transparency={5,0,1,0,0.2,0,0,0.8,0,0,1,1,0}},g="Glow"},{c="P",n="Glow",p={Color={6,0,0.2667,1,0.2275,1,0.2667,1,0.2275},Lifetime={4,1,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Orientation="VelocityParallel",Rate=4,Size={5,0,2,0,0.5005,0,0,1,1,0},Speed={4,0.25,0.25},SpreadAngle={3,360,360},Texture="rbxassetid://1084955012",Transparency={5,0,1,0,0.2,0,0,0.8,0,0,1,1,0}},g="Glow"},{c="P",n="ParticleEmitter",p={Color={6,0,0.2667,1,0.2275,1,0.2667,1,0.2275},Lifetime={4,0.5,0.5},LightEmission=1,LightInfluence=1,LockedToPart=true,Orientation="VelocityPerpendicular",Rate=2.3,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,1.687,0,1,4.5,0},Speed={4,2,2},SpreadAngle={3,2,2},Texture="rbxassetid://1084987256",Transparency={5,0,1,0,0.5,0,0,1,1,0}},g="Particles"},{c="L",n="PointLight",p={Brightness=3,Color={1,0.2667,1,0.2275},Range=5},g="Light"},{c="P",n="Dust",p={Color={6,0,0,0.6667,0,1,0,0.6667,0},Drag=5,Lifetime={4,1,1},LightEmission=1,LightInfluence=1,LockedToPart=true,Orientation="VelocityParallel",Rate=9,Rotation={4,-360,360},Size={5,0,1,0,1,0,0},Speed={4,10,10},SpreadAngle={3,60,60},Texture="rbxassetid://1084996976",Transparency={5,0,1,0,1,0,0}},g="Particles"},{c="P",n="Glow",p={Color={6,0,0.2667,1,0.2275,1,0.2667,1,0.2275},Lifetime={4,2,2},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=3,Size={5,0,2,0,0.5,1,0,1,0.5,0},Speed={4,0.6,0.6},SpreadAngle={3,360,360},Squash={5,0,0,0.25,1,0,0.25},Texture="rbxassetid://1084976679",Transparency={5,0,1,0,0.2,0,0,0.8,0,0,1,1,0}},g="Glow"},{c="B",n="Beam",p={Color={6,0,0.2667,1,0.2275,1,0.2667,1,0.2275},FaceCamera=true,LightEmission=1,LightInfluence=1,Texture="rbxassetid://6091474388",TextureLength=0.2,Transparency={5,0,1,0,0.4,0,0,0.4,0,0,1,1,0},Width0=3.5,Width1=0.5},a=1,b=2,g="Beams"}}},{c="A",n="Attachment",p={CFrame={7,0,3.462,9.906,1,0,0,0,0.9659,0.2588,0,-0.2588,0.9659}},i=2}}}}},
 ["pa_solarflare"]={r6=true,h={{n="Torso",cf={7,0,0,0,1,0,0,0,1,0,0,0,1},s={2,2,2,1},k={{c="A",n="Attachment",i=1,k={{c="L",n="PointLight",p={Brightness=5,Color={1,1,0.3333,0},Range=5},g="Light"},{c="P",n="Burst",p={Color={6,0,1,0.3333,0,1,1,0.3333,0},Lifetime={4,0.5,0.5},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=2.5,RotSpeed={4,-150,150},Rotation={4,-360,360},Size={5,0,0,0,1,7.7,0},Speed={4,0.001,0.001},SpreadAngle={3,360,360},Texture="rbxassetid://7216856402",Transparency={5,0,1,0,0.2,0,0,0.8,0,0,1,1,0}},g="Particles"},{c="P",n="Flam",p={Color={6,0,1,0.3333,0,1,1,0.3333,0},Lifetime={4,1.5,1.5},LightEmission=1,LightInfluence=1,LockedToPart=true,Orientation="VelocityPerpendicular",Rate=7,RotSpeed={4,-150,150},Rotation={4,-360,360},Size={5,0,4.5,0.5,0.1,5,0.5,0.2,4.5,0.5,0.3,5,0.5,0.4,4.5,0.5,0.5,5,0.5,0.6,4.5,0.5,0.7,5,0.5,0.8,4.5,0.5,0.9,5,0.5,1,4.5,0.5},Speed={4,0.001,0.001},SpreadAngle={3,360,360},Squash={5,0,0,0.25,1,0,0.25},Texture="rbxassetid://7216850580",Transparency={5,0,1,0,0.2,0,0,0.8,0,0,1,1,0},ZOffset=-1},g="Particles"},{c="P",n="Spark",p={Color={6,0,1,0.3333,0,1,1,0.3333,0},Lifetime={4,1.5,1.5},LightEmission=1,LightInfluence=1,LockedToPart=true,Orientation="VelocityPerpendicular",Rate=5,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,6,0.5,0.1,7,0.5,0.2,6,0.5,0.3,7,0.5,0.4,6,0.5,0.5,7,0.5,0.6,6,0.5,0.7,7,0.5,0.8,6,0.5,0.9,7,0.5,1,6,0.5},Speed={4,0.001,0.001},SpreadAngle={3,360,360},Squash={5,0,0,0.25,1,0,0.25},Texture="rbxassetid://7216848832",Transparency={5,0,1,0,0.2,0,0,0.8,0,0,1,1,0},ZOffset=-1},g="Stars"},{c="P",n="Glow",p={Color={6,0,1,0.3333,0,1,1,0.3333,0},Lifetime={4,1.5,1.5},LightEmission=1,LightInfluence=1,LockedToPart=true,Rate=7,RotSpeed={4,-100,100},Rotation={4,-360,360},Size={5,0,5.125,0,0.5,0,0,1,0.7,0},Speed={4,0.001,0.001},SpreadAngle={3,360,360},Squash={5,0,0,0.25,1,0,0.25},Texture="rbxassetid://1075864321",Transparency={5,0,1,0,0.2,0,0,0.8,0,0,1,1,0},ZOffset=1},g="Glow"},{c="P",n="Dust",p={Color={6,0,1,0.3333,0,1,1,0.3333,0},Lifetime={4,1,1},LightEmission=1,LightInfluence=1,RotSpeed={4,-200,200},Rotation={4,-360,360},Size={5,0,0.25,0.15,1,0.25,0.15},SpreadAngle={3,360,360},Texture="rbxassetid://1053546634",Transparency={5,0,0,0,1,1,0},ZOffset=-1},g="Particles"},{c="P",n="Dust2",p={Color={6,0,1,0.3333,0,1,1,0.3333,0},Lifetime={4,1,1},LightEmission=1,LightInfluence=1,RotSpeed={4,-200,200},Rotation={4,-360,360},Size={5,0,0.25,0.15,1,0.25,0.15},SpreadAngle={3,360,360},Texture="rbxassetid://1084970835",Transparency={5,0,0,0,1,1,0},ZOffset=-1},g="Particles"}}}}}}},
 ["pa_sunnecro"]={r6=true,h={{n="Head",cf={7,0,1.5,0,1,0,0,0,1,0,0,0,1},s={2,2,1,1},k={{c="P",n="AuraPart",p={Brightness=10,Color={6,0,1,0.6118,0.06667,1,1,0.8118,0.3255},Drag=10,Lifetime={4,1,1},LockedToPart=true,Rate=250,RotSpeed={4,-360,360},Size={5,0,0.5,0,0.4484,0,0,1,1.375,0},Speed={4,1,1},SpreadAngle={3,200,200},Texture="rbxassetid://6764385668",Transparency={5,0,0,0,1,1,0},ZOffset=-1},g="Glow"},{c="P",n="AuraPart2",p={Brightness=10,Color={6,0,1,0.6118,0.06667,1,1,0.8118,0.3255},Drag=10,Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=250,RotSpeed={4,-360,360},Size={5,0,0,0,1,0.1,0},Speed={4,6.3,6.3},SpreadAngle={3,360,360},Texture="rbxassetid://3186494455",Transparency={5,0,0,0,1,1,0},ZOffset=-1},g="Glow"}}},{n="Left Arm",cf={7,-1.5,0,0,1,0,0,0,1,0,0,0,1},s={2,1,2,1},k={{c="P",n="AuraPart",p={Brightness=10,Color={6,0,1,0.6118,0.06667,1,1,0.8118,0.3255},Drag=10,Lifetime={4,1,1},LockedToPart=true,Rate=250,RotSpeed={4,-360,360},Size={5,0,0.5,0,0.4484,0,0,1,1.375,0},Speed={4,1,1},SpreadAngle={3,200,200},Texture="rbxassetid://6764385668",Transparency={5,0,0,0,1,1,0},ZOffset=-1},g="Glow"},{c="P",n="AuraPart2",p={Brightness=10,Color={6,0,1,0.6118,0.06667,1,1,0.8118,0.3255},Drag=10,Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=250,RotSpeed={4,-360,360},Size={5,0,0,0,1,0.1,0},Speed={4,6.3,6.3},SpreadAngle={3,360,360},Texture="rbxassetid://3186494455",Transparency={5,0,0,0,1,1,0},ZOffset=-1},g="Glow"}}},{n="Left Leg",cf={7,-0.5,-2,0,1,0,0,0,1,0,0,0,1},s={2,1,2,1},k={{c="P",n="AuraPart",p={Brightness=10,Color={6,0,1,0.6118,0.06667,1,1,0.8118,0.3255},Drag=10,Lifetime={4,1,1},LockedToPart=true,Rate=250,RotSpeed={4,-360,360},Size={5,0,0.5,0,0.4484,0,0,1,1.375,0},Speed={4,1,1},SpreadAngle={3,200,200},Texture="rbxassetid://6764385668",Transparency={5,0,0,0,1,1,0},ZOffset=-1},g="Glow"},{c="P",n="AuraPart2",p={Brightness=10,Color={6,0,1,0.6118,0.06667,1,1,0.8118,0.3255},Drag=10,Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=250,RotSpeed={4,-360,360},Size={5,0,0,0,1,0.1,0},Speed={4,6.3,6.3},SpreadAngle={3,360,360},Texture="rbxassetid://3186494455",Transparency={5,0,0,0,1,1,0},ZOffset=-1},g="Glow"}}},{n="Right Arm",cf={7,1.5,0,0,1,0,0,0,1,0,0,0,1},s={2,1,2,1},k={{c="P",n="AuraPart",p={Brightness=10,Color={6,0,1,0.6118,0.06667,1,1,0.8118,0.3255},Drag=10,Lifetime={4,1,1},LockedToPart=true,Rate=250,RotSpeed={4,-360,360},Size={5,0,0.5,0,0.4484,0,0,1,1.375,0},Speed={4,1,1},SpreadAngle={3,200,200},Texture="rbxassetid://6764385668",Transparency={5,0,0,0,1,1,0},ZOffset=-1},g="Glow"},{c="P",n="AuraPart2",p={Brightness=10,Color={6,0,1,0.6118,0.06667,1,1,0.8118,0.3255},Drag=10,Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=250,RotSpeed={4,-360,360},Size={5,0,0,0,1,0.1,0},Speed={4,6.3,6.3},SpreadAngle={3,360,360},Texture="rbxassetid://3186494455",Transparency={5,0,0,0,1,1,0},ZOffset=-1},g="Glow"}}},{n="Right Leg",cf={7,0.5,-2,0,1,0,0,0,1,0,0,0,1},s={2,1,2,1},k={{c="P",n="AuraPart",p={Brightness=10,Color={6,0,1,0.6118,0.06667,1,1,0.8118,0.3255},Drag=10,Lifetime={4,1,1},LockedToPart=true,Rate=250,RotSpeed={4,-360,360},Size={5,0,0.5,0,0.4484,0,0,1,1.375,0},Speed={4,1,1},SpreadAngle={3,200,200},Texture="rbxassetid://6764385668",Transparency={5,0,0,0,1,1,0},ZOffset=-1},g="Glow"},{c="P",n="AuraPart2",p={Brightness=10,Color={6,0,1,0.6118,0.06667,1,1,0.8118,0.3255},Drag=10,Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=250,RotSpeed={4,-360,360},Size={5,0,0,0,1,0.1,0},Speed={4,6.3,6.3},SpreadAngle={3,360,360},Texture="rbxassetid://3186494455",Transparency={5,0,0,0,1,1,0},ZOffset=-1},g="Glow"}}},{n="Torso",cf={7,0,0,0,1,0,0,0,1,0,0,0,1},s={2,2,2,1},k={{c="P",n="AuraPart",p={Brightness=10,Color={6,0,1,0.6118,0.06667,1,1,0.8118,0.3255},Drag=10,Lifetime={4,1,1},LockedToPart=true,Rate=250,RotSpeed={4,-360,360},Size={5,0,0.5,0,0.4484,0,0,1,1.375,0},Speed={4,1,1},SpreadAngle={3,200,200},Texture="rbxassetid://6764385668",Transparency={5,0,0,0,1,1,0},ZOffset=-1},g="Glow"},{c="P",n="AuraPart2",p={Brightness=10,Color={6,0,1,0.6118,0.06667,1,1,0.8118,0.3255},Drag=10,Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=250,RotSpeed={4,-360,360},Size={5,0,0,0,1,0.1,0},Speed={4,6.3,6.3},SpreadAngle={3,360,360},Texture="rbxassetid://3186494455",Transparency={5,0,0,0,1,1,0},ZOffset=-1},g="Glow"},{c="P",n="TorsoPart",p={Color={6,0,1,0.6118,0.06667,1,1,0.8118,0.3255},Drag=10,Lifetime={4,1,1},LightEmission=1,LockedToPart=true,Rate=250,RotSpeed={4,-360,360},Size={5,0,0,0,1,3.687,0},Speed={4,1,1},SpreadAngle={3,360,360},Texture="rbxassetid://3186494455",Transparency={5,0,0.8562,0,1,1,0},ZOffset=-3},g="Particles"}}},{n="Aura",cf={7,-0.09561,-3.253,-0.24,1,0,0,0,1,0,0,0,1},s={2,4,0.001,2},k={{c="A",n="Attachment",p={CFrame={7,0.04609,0.431,0.02068,1,0,0,0,1,0,0,0,1}},i=1,k={{c="P",n="CircleOuter",p={Brightness=15,Color={6,0,1,0.5216,0.03922,1,0.2941,0.1608,0.01176},Drag=1,Lifetime={4,1.6,1.6},LightEmission=1,LockedToPart=true,Orientation="VelocityPerpendicular",Rate=0.5,RotSpeed={4,-180,-180},Rotation={4,360,360},Shape="Disc",Size={5,0,3.375,0,1,5.312,0},Speed={4,0.1,0.1},Texture="rbxassetid://2152222413",Transparency={5,0,1,0,0.5052,0.7937,0,1,1,0}},g="Rings"},{c="P",n="Circle",p={Brightness=15,Color={6,0,1,0.5216,0.03922,1,0.2941,0.1608,0.01176},Drag=1,Lifetime={4,1.6,1.6},LightEmission=1,LockedToPart=true,Orientation="VelocityPerpendicular",Rate=0.5,RotSpeed={4,180,180},Rotation={4,360,360},Shape="Disc",Size={5,0,2.437,0,1,3.687,0},Speed={4,0.1,0.1},Texture="rbxassetid://2830891958",Transparency={5,0,1,0,0.5067,0.4,0,1,1,0}},g="Rings"}}}}},{n="Aura",cf={7,-0.09561,3.86,-0.24,1,0,0,0,1,0,0,0,1},s={2,4,0.001,2},k={{c="P",n="SmallParticles",p={Brightness=150,Color={6,0,0.7098,0.3412,0.01569,1,1,0.5843,0.07843},EmissionDirection="Bottom",Lifetime={4,1.3,1.3},LightEmission=100,LockedToPart=true,Orientation="FacingCameraWorldUp",Rate=250,Size={5,0,0,0,1,0.125,0},SpreadAngle={3,5,5},Squash={5,0,3,0,1,3,0},Texture="rbxassetid://5076152048",Transparency={5,0,0.7062,0,1,0.8875,0},ZOffset=1},g="Glow"}}}}},
@@ -6287,7 +6257,7 @@ function OfflineEnvironment.create(host, hostGame)
 	for name, callback in files do
 		environment[name] = callback
 	end
-	environment.__pulseData = ResourceData.create(environment)
+	environment.__staticData = ResourceData.create(environment)
 
 	local requestContext = {files = files, encodedFiles = OfflineFiles.resources, blocked = diagnostics.blocked}
 	local function request(options)
@@ -6398,10 +6368,10 @@ function Music.stop(environment, state)
 	Music._destroy(environment, state, "secondResource")
 	state.currentTrack = nil
 	state.isPlaying = false
-	environment.getgenv().__pulseMusicNow = nil
+	environment.getgenv().__staticMusicNow = nil
 
 	environment.pcall(function()
-		local stopRain = environment.getgenv().__pulseRainStop
+		local stopRain = environment.getgenv().__staticRainStop
 
 		if stopRain then
 			stopRain()
@@ -7033,7 +7003,7 @@ function TradeValues.install(context)
 		return entry and entry.v or nil
 	end
 	state.load = function(force) TradeValues.load(state, force) end
-	env.getgenv().__pulseSV = state
+	env.getgenv().__staticSV = state
 	section:Header("Trade")
 	section:Toggle({Text = "Trade Value Counter", Default = settings.value == true, Callback = function(enabled)
 		settings.value = enabled == true
@@ -7065,7 +7035,7 @@ function TradeValues.install(context)
 	if settings.value or settings.inv ~= false then env.task.delay(3, function() if context.isAlive() then TradeValues.load(state, false) end end) end
 	return state, function()
 		TradeValues.clear(state)
-		if env.getgenv().__pulseSV == state then env.getgenv().__pulseSV = nil end
+		if env.getgenv().__staticSV == state then env.getgenv().__staticSV = nil end
 	end
 end
 
@@ -7533,7 +7503,7 @@ function GunFeature.installEsp(context)
 			label.TextColor3, label.TextStrokeTransparency, label.Parent = color, 0.4, billboard
 			pcall(function() billboard.Parent = context.coreGui end)
 			if billboard.Parent ~= context.coreGui then billboard.Parent = player:FindFirstChildOfClass("PlayerGui") end
-			pcall(function() environment.getgenv().__pulseBBMirror.add(billboard) end)
+			pcall(function() environment.getgenv().__staticBBMirror.add(billboard) end)
 		end
 		billboard.Adornee = adornee
 		if not highlight or not highlight.Parent then
@@ -7567,7 +7537,7 @@ function GunFeature.installAuto(context)
 	local settings = context.configuration.sheriff
 	local state = {drop = nil, t0 = 0, n = 0, fullT = 0, log = {}}
 	local picking = false
-	globals.__pulseAutoGun = state
+	globals.__staticAutoGun = state
 
 	local function log(message)
 		table.insert(state.log, string.format("%.2f %s", environment.os.clock(), message))
@@ -7625,15 +7595,15 @@ function GunFeature.installAuto(context)
 		return true
 	end
 	local function pauseInvisibility(drop)
-		local invisible = globals.__pulseInvis
+		local invisible = globals.__staticInvis
 		if not invisible or not invisible.active then return end
 		local now = environment.os.clock()
-		if globals.__pulseInvisPauseDrop ~= drop then
-			globals.__pulseInvisPauseDrop, globals.__pulseInvisPauseN = drop, 0
+		if globals.__staticInvisPauseDrop ~= drop then
+			globals.__staticInvisPauseDrop, globals.__staticInvisPauseN = drop, 0
 		end
-		if (tonumber(globals.__pulseInvisPause) or 0) < now and (globals.__pulseInvisPauseN or 0) < 4 then
-			globals.__pulseInvisPauseN = (globals.__pulseInvisPauseN or 0) + 1
-			globals.__pulseInvisPause = now + 0.6
+		if (tonumber(globals.__staticInvisPause) or 0) < now and (globals.__staticInvisPauseN or 0) < 4 then
+			globals.__staticInvisPauseN = (globals.__staticInvisPauseN or 0) + 1
+			globals.__staticInvisPause = now + 0.6
 		end
 	end
 	local function attempt(force)
@@ -7655,7 +7625,7 @@ function GunFeature.installAuto(context)
 		if touch(object, part, full) then state.n += 1 end
 		return true
 	end
-	globals.__pulsePickUpGun = function()
+	globals.__staticPickUpGun = function()
 		if picking or gun() then return false end
 		picking = true
 		environment.task.spawn(function()
@@ -7717,14 +7687,14 @@ function GunFeature.installAuto(context)
 				end,
 				Callback = function(value) settings.agDist = value end})
 		end})
-	local key = globals.__pulseBindFromName(settings.grabKey)
+	local key = globals.__staticBindFromName(settings.grabKey)
 	context.section:Keybind({Text = "Pick Up Gun", Default = key, Callback = function(value)
 		key = value
 		settings.grabKey = value and value.Name or ""
 	end})
 	context.connect(context.inputService.InputBegan, function(input)
-		if not globals.__pulseBindReady() or not globals.__pulseBindHit(input, key) then return end
-		if globals.__pulsePickUpGun then pcall(globals.__pulsePickUpGun) end
+		if not globals.__staticBindReady() or not globals.__staticBindHit(input, key) then return end
+		if globals.__staticPickUpGun then pcall(globals.__staticPickUpGun) end
 	end)
 end
 
@@ -8106,7 +8076,7 @@ function ServerIdentity.MapVote.restoreInvisibility(state)
 		environment.task.wait(0.6)
 		pcall(function()
 			local globals = environment.getgenv()
-			local getInvisible, setInvisible = globals.__pulseGetInvis, globals.__pulseSetInvis
+			local getInvisible, setInvisible = globals.__staticGetInvis, globals.__staticSetInvis
 			if setInvisible and (not getInvisible or not getInvisible()) then setInvisible(true) end
 		end)
 	end)
@@ -8122,9 +8092,9 @@ function ServerIdentity.MapVote.run(state, index, count)
 	local invisible = false
 	pcall(function()
 		local globals = environment.getgenv()
-		if globals.__pulseGetInvis and globals.__pulseSetInvis and globals.__pulseGetInvis() then
+		if globals.__staticGetInvis and globals.__staticSetInvis and globals.__staticGetInvis() then
 			invisible = true
-			globals.__pulseSetInvis(false)
+			globals.__staticSetInvis(false)
 		end
 	end)
 	local silent = state.cfg.silent ~= false
@@ -8277,7 +8247,7 @@ function ServerIdentity.MapVote.autoStart(state)
 	local pads, active = vote.snapshot(state)
 	if not active then return end
 	state.autoRan = true
-	if state.cfg.farmSort == true then pcall(vote.sortFarm, state, rawget(context.environment.getgenv(), "__pulseMapFarm")) end
+	if state.cfg.farmSort == true then pcall(vote.sortFarm, state, rawget(context.environment.getgenv(), "__staticMapFarm")) end
 	for index = 1, 3 do
 		local pad = pads[index]
 		if pad and pad.active and not vote.keyForIcon(state, pad.icon) then vote.discover(state, pad.name, nil, clock()) end
@@ -8602,12 +8572,12 @@ function ServerIdentity.MapVote.controls(state)
 	end})
 	section:Toggle({Text = "Farm Priority", Default = state.cfg.farmSort == true, Callback = function(value)
 		state.cfg.farmSort = not not value
-		if value then pcall(vote.sortFarm, state, rawget(context.environment.getgenv(), "__pulseMapFarm")) end
+		if value then pcall(vote.sortFarm, state, rawget(context.environment.getgenv(), "__staticMapFarm")) end
 		vote.renderPriority(state)
 	end})
 	section:Toggle({Text = "Explore Maps", Default = state.cfg.explore == true, Callback = function(value)
 		state.cfg.explore = not not value
-		if state.cfg.farmSort then pcall(vote.sortFarm, state, rawget(context.environment.getgenv(), "__pulseMapFarm")) end
+		if state.cfg.farmSort then pcall(vote.sortFarm, state, rawget(context.environment.getgenv(), "__staticMapFarm")) end
 		vote.renderPriority(state)
 	end})
 	section:Dropdown({Text = "Other maps", Default = state.cfg.fallback, Options = {
@@ -8631,10 +8601,10 @@ function ServerIdentity.MapVote.install(context)
 	state.iconFor = function(name) return vote.icon(state, vote.key(name)) end
 	state.isKey = function(key) return state.maps[key] ~= nil end
 	state.sortFarm = function()
-		vote.sortFarm(state, rawget(context.environment.getgenv(), "__pulseMapFarm"))
+		vote.sortFarm(state, rawget(context.environment.getgenv(), "__staticMapFarm"))
 		vote.renderPriority(state)
 	end
-	context.environment.getgenv().__pulseVoteDbg = state
+	context.environment.getgenv().__staticVoteDbg = state
 	vote.controls(state)
 	pcall(vote.panel, state)
 	context.environment.task.spawn(function()
@@ -17881,7 +17851,7 @@ function Translation.create()
 			["Preview Victory"] = "РџСЂРѕСЃР»СѓС€Р°С‚СЊ РїРѕР±РµРґСѓ",
 			["Private server"] = "РџСЂРёРІР°С‚РЅС‹Р№ СЃРµСЂРІРµСЂ",
 			["Pro Clarity"] = "Р§С‘С‚РєРѕСЃС‚СЊ",
-			["Problem? Heh. I'm Trolly, the Pulse Hub guide. Need something?"] = "РџСЂРѕР±Р»РµРјС‹? РҐРµ-С…Рµ. РЇ РўСЂРѕР»Р»Рё, РіРёРґ Pulse Hub. Р§РµРј РїРѕРјРѕС‡СЊ?",
+			["Problem? Heh. I'm Trolly, the Static Hub guide. Need something?"] = "РџСЂРѕР±Р»РµРјС‹? РҐРµ-С…Рµ. РЇ РўСЂРѕР»Р»Рё, РіРёРґ Static Hub. Р§РµРј РїРѕРјРѕС‡СЊ?",
 			["Props"] = "РџСЂРµРґРјРµС‚С‹",
 			["Protection"] = "Р—Р°С‰РёС‚Р°",
 			["Publish config"] = "РџСѓР±Р»РёРєР°С†РёСЏ РєРѕРЅС„РёРіР°",
@@ -17892,12 +17862,12 @@ function Translation.create()
 			["Publishing is blocked for you"] = "РџСѓР±Р»РёРєР°С†РёСЏ РґР»СЏ С‚РµР±СЏ Р·Р°РєСЂС‹С‚Р°",
 			["Pulse (animated)"] = "РџСѓР»СЊСЃ (Р°РЅРёРјР°С†РёСЏ)",
 			["Pulse (site)"] = "Pulse (СЃР°Р№С‚)",
-			["Pulse Hub for Murder Mystery 2"] = "Pulse Hub РґР»СЏ Murder Mystery 2",
-			["Pulse Hub is in beta"] = "Pulse Hub РІ Р±РµС‚Рµ",
-			["Pulse Hub is in beta:>"] = "Pulse Hub РІ Р±РµС‚Рµ:>",
-			["Pulse Hub was rebuilt almost from scratch: new menu, new aim, new ESP and a pile of new features. Pick a topic!"] = "Pulse Hub РїРµСЂРµРґРµР»Р°РЅ РїРѕС‡С‚Рё СЃ РЅСѓР»СЏ: РЅРѕРІРѕРµ РјРµРЅСЋ, РЅРѕРІС‹Р№ Р°РёРј, РЅРѕРІС‹Р№ ESP Рё РєСѓС‡Р° РЅРѕРІС‹С… С„СѓРЅРєС†РёР№. Р’С‹Р±РёСЂР°Р№ С‚РµРјСѓ!",
+			["Static Hub for Murder Mystery 2"] = "Static Hub РґР»СЏ Murder Mystery 2",
+			["Static Hub is in beta"] = "Static Hub РІ Р±РµС‚Рµ",
+			["Static Hub is in beta:>"] = "Static Hub РІ Р±РµС‚Рµ:>",
+			["Static Hub was rebuilt almost from scratch: new menu, new aim, new ESP and a pile of new features. Pick a topic!"] = "Static Hub РїРµСЂРµРґРµР»Р°РЅ РїРѕС‡С‚Рё СЃ РЅСѓР»СЏ: РЅРѕРІРѕРµ РјРµРЅСЋ, РЅРѕРІС‹Р№ Р°РёРј, РЅРѕРІС‹Р№ ESP Рё РєСѓС‡Р° РЅРѕРІС‹С… С„СѓРЅРєС†РёР№. Р’С‹Р±РёСЂР°Р№ С‚РµРјСѓ!",
 			["Pulse Users"] = "Pulse СЋР·РµСЂС‹",
-			["Pulse"] = "РџСѓР»СЊСЃ",
+			["Static"] = "РџСѓР»СЊСЃ",
 			["Purple"] = "Р¤РёРѕР»РµС‚РѕРІС‹Р№",
 			["Push Volume Now"] = "РџСЂРёРјРµРЅРёС‚СЊ РіСЂРѕРјРєРѕСЃС‚СЊ",
 			["Quality"] = "РљР°С‡РµСЃС‚РІРѕ",
@@ -20404,7 +20374,7 @@ local AimTarget = {}
 
 function AimTarget.murderer(context, roles)
 	local globals = context.environment.getgenv and context.environment.getgenv()
-	local duel = globals and rawget(globals, "__pulseDuel")
+	local duel = globals and rawget(globals, "__staticDuel")
 	if duel and duel.on and duel.pick then return duel.pick() end
 	for _, player in context.players:GetPlayers() do
 		local role = roles[player.Name]
@@ -20484,17 +20454,9 @@ end
 function AimTarget.track(context, state, roles)
 	local environment = context.environment
 	local globals = environment.getgenv and environment.getgenv()
-	local world = globals and rawget(globals, "__pulseWorldBase")
+	local world = globals and rawget(globals, "__staticWorldBase")
 	state.G = type(world) == "table" and tonumber(world.Gravity) or context.workspace.Gravity
 	local _, target = AimTarget.murderer(context, roles)
-	-- Friends protection: if the murderer is marked as a friend, clear the target
-	if target and globals.__pulseFriends and globals.__pulseFriends.enabled then
-		local character = target
-		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-		if humanoid and globals.__pulseFriends.targets[humanoid.Parent and humanoid.Parent.UserId] then
-			target = nil
-		end
-	end
 	if state.forced and state.forced.Parent then target = state.forced end
 	if state.queued and state.queued.c and state.queued.c.Parent then target = state.queued.c end
 	if target ~= state.target then state.target, state.hist = target, {} end
@@ -20556,7 +20518,7 @@ function AimTarget.others(context, state)
 	if not state.othersDirty then return state.others or {} end
 	state.othersDirty = false
 	local globals = context.environment.getgenv and context.environment.getgenv()
-	local duel = globals and rawget(globals, "__pulseDuel")
+	local duel = globals and rawget(globals, "__staticDuel")
 	if not duel or not duel.on or not duel.pick then duel = nil end
 	local others = {}
 	for _, player in context.players:GetPlayers() do
@@ -20590,7 +20552,7 @@ end
 function AimTarget.selfShift(context, state)
 	local environment = context.environment
 	local globals = environment.getgenv and environment.getgenv()
-	local invisible = globals and rawget(globals, "__pulseInvis")
+	local invisible = globals and rawget(globals, "__staticInvis")
 	if type(invisible) ~= "table" or not invisible.active or environment.typeof(invisible.real) ~= "CFrame" then return environment.Vector3.zero end
 	if environment.os.clock() - (tonumber(invisible.realAt) or 0) > (state.shiftFresh or 0.3) then return environment.Vector3.zero end
 	local character = context.player.Character
@@ -20636,7 +20598,7 @@ end
 function AimTarget.guardInfo(context)
 	local environment = context.environment
 	local globals = environment.getgenv and environment.getgenv()
-	local guard = globals and rawget(globals, "__pulseMuzzle")
+	local guard = globals and rawget(globals, "__staticMuzzle")
 	if type(guard) ~= "table" or not guard.alive or not guard.at or environment.os.clock() - guard.at > 0.15 then return nil end
 	return guard
 end
@@ -21551,11 +21513,11 @@ function AimEngine.send(context, state, plan, character, reason, clickTime)
 		if ok and alternate then plan, sign = alternate, alternateSign end
 	end
 	local globals, now = environment.getgenv(), environment.os.clock()
-	pcall(function() globals.__pulseShotHold = now + (state.holdFor or 0.35) end)
+	pcall(function() globals.__staticShotHold = now + (state.holdFor or 0.35) end)
 	pcall(function()
-		local antiAim = rawget(globals, "__pulseAntiAim")
+		local antiAim = rawget(globals, "__staticAntiAim")
 		if antiAim and antiAim.desyncAt and environment.os.clock() - antiAim.desyncAt < 0.2 then
-			globals.__pulseShotHold = math.max(tonumber(globals.__pulseShotHold) or 0, environment.os.clock() + 0.45)
+			globals.__staticShotHold = math.max(tonumber(globals.__staticShotHold) or 0, environment.os.clock() + 0.45)
 		end
 	end)
 	local root, previous = character:FindFirstChild("HumanoidRootPart"), state.pending
@@ -21575,7 +21537,7 @@ function AimEngine.send(context, state, plan, character, reason, clickTime)
 			hd = head and head.Position + shift, mz = muzzle and muzzle.WorldPosition + shift,
 			cp = camera and camera.CFrame.Position, cl = camera and camera.CFrame.LookVector}
 	end)
-	local hook = globals.__pulseAim
+	local hook = globals.__staticAim
 	if hook then hook.bypass = true end
 	local sent = pcall(function() shoot:FireServer(environment.CFrame.new(plan.o, plan.e), environment.CFrame.new(plan.e)) end)
 	if hook then hook.bypass = false end
@@ -21964,7 +21926,7 @@ end
 function AimEngine.install(context)
 	local environment = context.environment
 	local globals = environment.getgenv()
-	local previous = rawget(globals, "__pulseAimXPrev")
+	local previous = rawget(globals, "__staticAimXPrev")
 	if type(previous) == "table" and type(previous.stop) == "function" then pcall(previous.stop) end
 	local state, runtime = AimCalibration.create(), {lastNoGun = 0, lastBacktest = 0, lastFactor = 0}
 	AimTiming.configure(state, context.configuration.sheriff)
@@ -22002,7 +21964,7 @@ function AimEngine.install(context)
 		return state.ds ~= nil and state.ds.backAt ~= nil and (not character or state.ds.c == character)
 			and environment.os.clock() - state.ds.backAt < (state.dsWinT or 0.9)
 	end
-	globals.__pulseAimX, globals.__pulseAimXPrev = state, state
+	globals.__staticAimX, globals.__staticAimXPrev = state, state
 	AimCalibration.load(context, state)
 	pcall(function()
 		if environment.isfolder and environment.makefolder and not environment.isfolder("PulseHub") then environment.makefolder("PulseHub") end
@@ -22026,7 +21988,7 @@ local SheriffRuntime = {}
 
 function SheriffRuntime.target(context)
 	local globals = context.environment.getgenv()
-	local duel = rawget(globals, "__pulseDuel")
+	local duel = rawget(globals, "__staticDuel")
 	if duel and duel.on then return duel.pick() end
 	local roles = context.roles()
 	for _, player in context.players:GetPlayers() do
@@ -22137,8 +22099,8 @@ end
 function SheriffRuntime.installHooks(context)
 	local environment, settings = context.environment, context.configuration.sheriff
 	local globals = environment.getgenv()
-	globals.__pulseAim = globals.__pulseAim or {}
-	local aim = globals.__pulseAim
+	globals.__staticAim = globals.__staticAim or {}
+	local aim = globals.__staticAim
 	aim.on, aim.silent = not not settings.silentAim, false
 	if not aim.origFire then
 		pcall(function()
@@ -22148,9 +22110,9 @@ function SheriffRuntime.installHooks(context)
 		end)
 	end
 	local function targetPart()
-		local duel = rawget(globals, "__pulseDuel")
+		local duel = rawget(globals, "__staticDuel")
 		if duel and duel.on then
-			local _, character = duel.pick(globals.__pulseFovOK)
+			local _, character = duel.pick(globals.__staticFovOK)
 			if not character then _, character = duel.pick() end
 			return character and (character:FindFirstChild("HumanoidRootPart") or character:FindFirstChild("Head")) or nil
 		end
@@ -22161,7 +22123,7 @@ function SheriffRuntime.installHooks(context)
 		local part = targetPart()
 		local character = part and part.Parent
 		if not character then return false end
-		if globals.__pulseFovOK and not globals.__pulseFovOK(character) then return false end
+		if globals.__staticFovOK and not globals.__staticFovOK(character) then return false end
 		if settings.aimType == "Flick Shot" then
 			if context.flicking then return true end
 			if not SheriffRuntime.gun(context) or not context.workspace.CurrentCamera then return true end
@@ -22179,16 +22141,16 @@ function SheriffRuntime.installHooks(context)
 			local module = services and services:FindFirstChild("WeaponService")
 			local weapons = module and environment.require(module)
 			if not weapons then return end
-			local saved = globals.__pulseAimWS
+			local saved = globals.__staticAimWS
 			if saved and weapons.GetTargetPosition == saved.tgt and weapons.GetMouseTargetCFrame == saved.mouse then pointInstalled = true; return end
 			local oldMouse, oldTarget = weapons.GetMouseTargetCFrame, weapons.GetTargetPosition
 			local function position()
-				if globals.__pulseAim and globals.__pulseAim.bypass then return nil end
+				if globals.__staticAim and globals.__staticAim.bypass then return nil end
 				if not settings.silentAim and settings.aimType ~= "Flick Shot" then return nil end
 				local own = context.player.Character
 				if not own or not own:FindFirstChild("Gun") then return nil end
 				local part = targetPart()
-				if not part or globals.__pulseFovOK and not globals.__pulseFovOK(part.Parent) then return nil end
+				if not part or globals.__staticFovOK and not globals.__staticFovOK(part.Parent) then return nil end
 				return part.Position
 			end
 			local function mouse(self, ...)
@@ -22203,15 +22165,15 @@ function SheriffRuntime.installHooks(context)
 			end
 			weapons.GetMouseTargetCFrame, weapons.GetTargetPosition = mouse, target
 			if weapons.GetMouseTargetCFrame == mouse and weapons.GetTargetPosition == target then
-				globals.__pulseAimWS, pointInstalled = {mouse = mouse, tgt = target, origMouse = oldMouse, origTarget = oldTarget}, true
+				globals.__staticAimWS, pointInstalled = {mouse = mouse, tgt = target, origMouse = oldMouse, origTarget = oldTarget}, true
 			end
 		end)
 		return pointInstalled
 	end
 	aim.installAimPointHook = installPointHook
-	globals.__pulseAimGen = (globals.__pulseAimGen or 0) + 1
-	local generation, hooked, notifiedLimited, notifiedMissing = globals.__pulseAimGen, false, false, false
-	globals.__pulseHookCapOK = function()
+	globals.__staticAimGen = (globals.__staticAimGen or 0) + 1
+	local generation, hooked, notifiedLimited, notifiedMissing = globals.__staticAimGen, false, false, false
+	globals.__staticHookCapOK = function()
 		if type(environment.newcclosure) ~= "function" then return false end
 		local original = function(value) return value end
 		local ok, wrapper = pcall(environment.newcclosure, original)
@@ -22226,12 +22188,12 @@ function SheriffRuntime.installHooks(context)
 	local function installNamecall()
 		if hooked then return true end
 		if type(environment.hookmetamethod) ~= "function" or type(environment.getnamecallmethod) ~= "function"
-			or type(environment.newcclosure) ~= "function" or not globals.__pulseHookCapOK() then return false end
+			or type(environment.newcclosure) ~= "function" or not globals.__staticHookCapOK() then return false end
 		local original
 		local function intercept(remote, ...)
 			local ok, method = pcall(environment.getnamecallmethod)
-			local current = globals.__pulseAim
-			if not ok or method ~= "FireServer" or not current or not current.on or current.bypass or globals.__pulseAimGen ~= generation then
+			local current = globals.__staticAim
+			if not ok or method ~= "FireServer" or not current or not current.on or current.bypass or globals.__staticAimGen ~= generation then
 				return original(remote, ...)
 			end
 			if environment.checkcaller then
@@ -22250,7 +22212,7 @@ function SheriffRuntime.installHooks(context)
 		return hooked
 	end
 	local function notify(message)
-		pcall(function() environment.game:GetService("StarterGui"):SetCore("SendNotification", {Title = "Pulse Hub", Text = message, Duration = 7}) end)
+		pcall(function() environment.game:GetService("StarterGui"):SetCore("SendNotification", {Title = "Static Hub", Text = message, Duration = 7}) end)
 	end
 	aim.installHook = function()
 		if installNamecall() then return true end
@@ -22273,7 +22235,7 @@ function SheriffRuntime.install(context)
 		if settings.aimType == "Flick Shot" then environment.task.spawn(SheriffRuntime.flick, context, character, manual); return end
 		context.aim.fireFor(character, manual, not settings.wallbang)
 	end
-	globals.__pulseShotMurder = function()
+	globals.__staticShotMurder = function()
 		if not SheriffRuntime.gun(context) then return false end
 		local player, character = SheriffRuntime.target(context)
 		if not player or not character or not allowed(character) then return false end
@@ -22429,7 +22391,7 @@ function FarmState.isFull(context, state, now)
 end
 
 function FarmState.validCoin(context, state, coin)
-	if context.environment.getgenv().__pulseAntiCoin or not coin or not coin.Parent or not coin:IsA("BasePart") then return false end
+	if context.environment.getgenv().__staticAntiCoin or not coin or not coin.Parent or not coin:IsA("BasePart") then return false end
 	if not coin:FindFirstChild("TouchInterest") or coin:GetAttribute("Collected") or state.skipped[coin] then return false end
 	local id = coin:GetAttribute("CoinID")
 	if id ~= nil and state.full[id] then return false end
@@ -22456,7 +22418,7 @@ function FarmState.containers(context, state, now)
 end
 
 function FarmState.canFarm(context, state, roles)
-	if context.environment.getgenv().__pulseRoleFarmHold or type(roles) ~= "table" then return false end
+	if context.environment.getgenv().__staticRoleFarmHold or type(roles) ~= "table" then return false end
 	local role = roles[context.player.Name]
 	if not role or not role.Role then return false end
 	if role.Dead ~= true and role.Killed ~= true then return true end
@@ -22493,7 +22455,7 @@ function FarmMotion.touch(context, character, coin)
 	local environment = context.environment
 	if type(environment.firetouchinterest) ~= "function" or not character or not coin or not coin.Parent then return end
 	local globals = environment.getgenv()
-	if globals.__pulseInvis and globals.__pulseInvis.active then globals.__pulseInvisPause = environment.os.clock() + 0.35 end
+	if globals.__staticInvis and globals.__staticInvis.active then globals.__staticInvisPause = environment.os.clock() + 0.35 end
 	for _, part in FarmMotion.parts(character) do
 		pcall(function() environment.firetouchinterest(part, coin, 0); environment.firetouchinterest(part, coin, 1) end)
 	end
@@ -22635,7 +22597,7 @@ function FarmMotion.shootSpot(context, state, motion, root, now)
 		return motion.spot
 	end
 	if (spot - root.Position).Magnitude < 1 and now - (motion.spotT or 0) > 1 then
-		local guard = rawget(context.environment.getgenv(), "__pulseMuzzle")
+		local guard = rawget(context.environment.getgenv(), "__staticMuzzle")
 		if type(guard) == "table" and guard.at and now - guard.at < 0.2 and guard.blocked then
 			motion.spot, motion.spotD = FarmMotion.findShootSpot(context, root, motion.spotBase or spot, (motion.spotD or 0) + 2)
 		end
@@ -23075,7 +23037,7 @@ function FarmRuntime.MapFarm.create(context)
 	farm.ckey = function(name, map)
 		local key = farm.key(name)
 		if type(farm.alias[key]) == "string" then return farm.alias[key] end
-		local vote = rawget(environment.getgenv(), "__pulseVoteDbg")
+		local vote = rawget(environment.getgenv(), "__staticVoteDbg")
 		if not vote or type(vote.isKey) ~= "function" or vote.isKey(key) then return key end
 		local guess = farm.guess(key, vote.isKey)
 		if guess then farm.merge(key, guess); return guess end
@@ -23100,7 +23062,7 @@ function FarmRuntime.MapFarm.create(context)
 		return nil
 	end
 	farm.at = function()
-		local motion = rawget(environment.getgenv(), "__pulseFarmUF")
+		local motion = rawget(environment.getgenv(), "__staticFarmUF")
 		local teleport = motion and motion.tp
 		if teleport and teleport.touchC and teleport.touchC.Parent and environment.os.clock() - (teleport.touchT or 0) < 1.5 then
 			return teleport.touchC.Position
@@ -23181,7 +23143,7 @@ end
 
 function FarmRuntime.MapFarm.install(context, active)
 	local farm, environment = FarmRuntime.MapFarm.create(context), context.environment
-	environment.getgenv().__pulseMapFarm = farm
+	environment.getgenv().__staticMapFarm = farm
 	environment.task.spawn(function()
 		local saved = environment.os.clock()
 		while active() do
@@ -23198,7 +23160,7 @@ function FarmRuntime.MapFarm.install(context, active)
 end
 
 function FarmRuntime.zombie(context)
-	local duel = rawget(context.environment.getgenv(), "__pulseDuel")
+	local duel = rawget(context.environment.getgenv(), "__staticDuel")
 	if type(duel) == "table" and duel.on and duel.mode == "Zombie" then return duel end
 	return nil
 end
@@ -23222,7 +23184,7 @@ end
 
 function FarmRuntime.zombieFling(context, state, motion, duel, root, now)
 	local environment, globals = context.environment, context.environment.getgenv()
-	local fling = rawget(globals, "__pulseFlingPersist")
+	local fling = rawget(globals, "__staticFlingPersist")
 	if state.flinging or environment.tick() - (state.lastFling or 0) < 1 or type(fling) ~= "function" then return end
 	motion.zfs = motion.zfs or {}
 	local best, lowest
@@ -23300,7 +23262,7 @@ function FarmRuntime.shoot(context, motion, target)
 	local gyro = root and root:FindFirstChild("PulseFarmBG")
 	if gyro then pcall(function() gyro:Destroy() end) end
 	local globals = context.environment.getgenv()
-	local aim = rawget(globals, "__pulseAimX")
+	local aim = rawget(globals, "__staticAimX")
 	if aim and aim.alive and type(aim.fireFor) == "function" then
 		if (type(aim.ready) ~= "function" or aim.ready()) and not aim.queued
 			and not (aim.pending and not aim.pending.dead and context.environment.os.clock() - (aim.pending.t or 0) < 0.5) then
@@ -23309,7 +23271,7 @@ function FarmRuntime.shoot(context, motion, target)
 		end
 		return true
 	end
-	if type(globals.__pulseShotMurder) == "function" then pcall(globals.__pulseShotMurder) end
+	if type(globals.__staticShotMurder) == "function" then pcall(globals.__staticShotMurder) end
 	return true
 end
 
@@ -23323,8 +23285,8 @@ end
 function FarmRuntime.setEnabled(context, state, motion, enabled)
 	state.enabled = enabled
 	local globals = context.environment.getgenv()
-	local antiCoin = globals.__pulseAntiCoinInfo
-	if enabled and globals.__pulseAntiCoin and antiCoin and type(antiCoin.set) == "function" then
+	local antiCoin = globals.__staticAntiCoinInfo
+	if enabled and globals.__staticAntiCoin and antiCoin and type(antiCoin.set) == "function" then
 		state.restoreAntiCoin = true
 		pcall(antiCoin.set, false)
 	end
@@ -23340,7 +23302,7 @@ end
 function FarmRuntime.installRejoin(context, api)
 	local environment, globals = context.environment, context.environment.getgenv()
 	local state = {busy = false, tries = 0}
-	globals.__pulseRejoin = state
+	globals.__staticRejoin = state
 	state.key = function()
 		local key = rawget(globals, "script_key")
 		if type(key) ~= "string" or key == "" then key = rawget(environment._G or {}, "script_key") end
@@ -23358,7 +23320,7 @@ function FarmRuntime.installRejoin(context, api)
 	end
 	state.onKick = function(message)
 		pcall(function()
-			local webhook = rawget(globals, "__pulseFarmWebhook")
+			local webhook = rawget(globals, "__staticFarmWebhook")
 			if type(webhook) == "table" and type(webhook.onKick) == "function" then environment.task.spawn(webhook.onKick, message) end
 		end)
 		if state.busy or context.configuration.farm.rejoin == false or not api.getEnabled() then return end
@@ -23442,7 +23404,7 @@ function FarmRuntime.tick(context, state, motion, runtime, delta)
 		if motion.phase ~= "idle" then FarmMotion.reset(context, motion, character) end
 		return
 	end
-	if globals.__pulseManualFling or globals.__pulseTouchFlinging then
+	if globals.__staticManualFling or globals.__staticTouchFlinging then
 		if motion.phase ~= "idle" then FarmMotion.reset(context, motion, character) end
 		return
 	end
@@ -23465,7 +23427,7 @@ function FarmRuntime.tick(context, state, motion, runtime, delta)
 		if not full then motion.zkN, motion.zkT = nil, nil end
 		if full then
 			local keepKilling = false
-			local killPass = rawget(globals, "__pulseKillPass")
+			local killPass = rawget(globals, "__staticKillPass")
 			if context.configuration.farm.zKill ~= false and type(killPass) == "function" and killPass() then
 				local count = 0
 				for _, player in context.players:GetPlayers() do if duel.isFoe(player) and duel.alive(player) then count += 1 end end
@@ -23526,7 +23488,7 @@ function FarmRuntime.tick(context, state, motion, runtime, delta)
 	if gun and (not gun.Parent or not state.pickGun) then motion.gunTarget, gun = nil, nil end
 	local method = context.configuration.farm.method
 	if method ~= "Teleport" and method ~= "Fast" then method = "Under Map" end
-	local aim = zombieTarget and rawget(globals, "__pulseAimX")
+	local aim = zombieTarget and rawget(globals, "__staticAimX")
 	local zombieReady = zombieTarget and type(aim) == "table" and aim.alive and type(aim.ready) == "function" and aim.ready() and now >= (motion.zSkip or 0)
 	if zombieReady then
 		motion.zSince = motion.zSince or now
@@ -23591,7 +23553,7 @@ function FarmRuntime.install(context)
 	globals.PULSE_FARM_MM2_HEARTBEAT = true
 	local state, motion = FarmState.create(context), FarmMotion.create()
 	motion.ctRestore = function() FarmMotion.restoreTouch(motion) end
-	globals.__pulseFarmUF = motion
+	globals.__staticFarmUF = motion
 	local api = {}
 	api.setEnabled = function(value) FarmRuntime.setEnabled(context, state, motion, value) end
 	api.getEnabled = function() return state.enabled end
@@ -23609,7 +23571,7 @@ function FarmRuntime.install(context)
 		if not state.active then return "spectating" end
 		return FarmState.isFull(context, state, environment.tick()) and "full" or "farming"
 	end
-	globals.__pulseFarmAPI = api
+	globals.__staticFarmAPI = api
 	FarmRuntime.installRejoin(context, api)
 	local function active() return globals.PULSE_FARM_MM2_HEARTBEAT and globals.PULSE_FARM_MM2_VERSION == generation and context.isAlive() end
 	local mapFarm = FarmRuntime.MapFarm.install(context, active)
@@ -23624,8 +23586,8 @@ function FarmRuntime.install(context)
 		local character = context.player.Character
 		if not character then return end
 		local parts
-		if type(globals.__pulseNoclipParts) == "function" then
-			local ok, result = pcall(globals.__pulseNoclipParts, character)
+		if type(globals.__staticNoclipParts) == "function" then
+			local ok, result = pcall(globals.__staticNoclipParts, character)
 			if ok and type(result) == "table" then parts = result end
 		end
 		if not parts then
@@ -23786,7 +23748,7 @@ end
 
 function FarmRuntime.Webhook.embed(state, kind, reason)
 	local context, environment = state.context, state.context.environment
-	local api = environment.getgenv().__pulseFarmAPI
+	local api = environment.getgenv().__staticFarmAPI
 	local icons = FarmRuntime.Webhook.getIcons(state)
 	local session = api and api.getSession and api.getSession() or 0
 	local rate = api and api.getRate and api.getRate() or 0
@@ -23816,7 +23778,7 @@ function FarmRuntime.Webhook.embed(state, kind, reason)
 		title, color = "Disconnected", 15158332
 		description ..= "\n**Reason** " .. tostring(reason or "Connection lost"):sub(1, 300)
 	end
-	return {author = {name = "Murder Mystery 2 | Pulse Hub", icon_url = icons.mm2}, title = title, description = description, color = color,
+	return {author = {name = "Murder Mystery 2 | Static Hub", icon_url = icons.mm2}, title = title, description = description, color = color,
 		thumbnail = {url = profile.candies ~= nil and icons.candy or icons.coin}, fields = fields,
 		footer = {text = "pulsehub.gg", icon_url = icons.coin}, timestamp = environment.DateTime.now():ToIsoDate()}
 end
@@ -23838,11 +23800,11 @@ function FarmRuntime.Webhook.send(state, kind, reason)
 	if not FarmRuntime.Webhook.valid(state.cfg.url) then return false, "url" end
 
 	local embed = FarmRuntime.Webhook.embed(state, kind, reason)
-	local success, code = FarmRuntime.Webhook.post(state, {username = "Pulse Hub", avatar_url = (state.icons or FarmRuntime.Webhook.icons).mm2, embeds = {embed}})
+	local success, code = FarmRuntime.Webhook.post(state, {username = "Static Hub", avatar_url = (state.icons or FarmRuntime.Webhook.icons).mm2, embeds = {embed}})
 	if success then
 		state.sent += 1
 		if kind ~= "kick" then
-			local api = state.context.environment.getgenv().__pulseFarmAPI
+			local api = state.context.environment.getgenv().__staticFarmAPI
 			state.lastSess = api and api.getSession and api.getSession() or state.lastSess
 		end
 	end
@@ -23863,7 +23825,7 @@ function FarmRuntime.Webhook.step(state)
 	if not state.cfg.on or not FarmRuntime.Webhook.valid(state.cfg.url) then return end
 
 	local environment = state.context.environment
-	local api = environment.getgenv().__pulseFarmAPI
+	local api = environment.getgenv().__staticFarmAPI
 	local now = environment.os.clock()
 	if not (api and api.getEnabled and api.getEnabled()) then state.lastSent = now; return end
 	if now - state.lastSent < state.cfg.every * 60 then return end
@@ -23917,8 +23879,8 @@ function FarmRuntime.Webhook.install(context)
 	local state = {context = context, cfg = FarmRuntime.Webhook.load(context), lastSent = now, lastSess = 0, startAt = now, sent = 0, kickAt = 0}
 	state.send = function(kind, reason) return FarmRuntime.Webhook.send(state, kind, reason) end
 	state.onKick = function(reason) FarmRuntime.Webhook.onKick(state, reason) end
-	environment.getgenv().__pulseFarmWebhook = state
-	environment.getgenv().__pulseFarmWebhookUI = function(section) FarmRuntime.Webhook.controls(state, section) end
+	environment.getgenv().__staticFarmWebhook = state
+	environment.getgenv().__staticFarmWebhookUI = function(section) FarmRuntime.Webhook.controls(state, section) end
 	environment.task.spawn(function() FarmRuntime.Webhook.getIcons(state) end)
 	environment.task.spawn(function()
 		while not state.closed and context.isAlive() do
@@ -23985,7 +23947,7 @@ function RoleFarm.hold(context, state, value)
 	if value then state.acted = true end
 	if state.holding == value then return end
 	state.holding = value
-	context.environment.getgenv().__pulseRoleFarmHold = value or nil
+	context.environment.getgenv().__staticRoleFarmHold = value or nil
 end
 
 function RoleFarm.mine(context)
@@ -24051,12 +24013,12 @@ function RoleFarm.shoot(context, state, roles)
 	end
 	state.target = target.Name
 	local globals = context.environment.getgenv()
-	local aim = rawget(globals, "__pulseAimX")
+	local aim = rawget(globals, "__staticAimX")
 	if type(aim) == "table" and aim.alive and type(aim.fireFor) == "function" then
 		pcall(aim.fireFor, target, false, false)
 		return true
 	end
-	if type(globals.__pulseShotMurder) == "function" then pcall(globals.__pulseShotMurder) end
+	if type(globals.__staticShotMurder) == "function" then pcall(globals.__staticShotMurder) end
 	return true
 end
 
@@ -24160,7 +24122,7 @@ function RoleFarm.expInnocent(context, state, roles)
 	if sheriff and now >= state.flingWait and (state.flung[sheriff] or 0) < 4 then
 		state.flung[sheriff] = (state.flung[sheriff] or 0) + 1
 		state.state = "Flinging"
-		local fling = rawget(context.environment.getgenv(), "__pulseFlingDown")
+		local fling = rawget(context.environment.getgenv(), "__staticFlingDown")
 		local ok, result = false, nil
 		if type(fling) == "function" then ok, result = pcall(fling, sheriff, 0.8, {home = RoleFarm.lobby(context)}) end
 		state.flingWait = context.environment.os.clock() + (ok and result == true and 2.5 or 0.5)
@@ -24241,7 +24203,7 @@ function RoleFarm.install(context)
 	state.gun = function() return RoleFarm.gun(context) end
 	state.shoot = function(roles) return RoleFarm.shoot(context, state, roles) end
 	state.stabAll = function(roles) return RoleFarm.stabAll(context, roles) end
-	globals.__pulseRoleFarm = state
+	globals.__staticRoleFarm = state
 	environment.task.spawn(function()
 		while context.isAlive() do
 			environment.task.wait(0.1)
@@ -24256,7 +24218,7 @@ function RoleFarm.install(context)
 		local victory = gameplay and gameplay:WaitForChild("VictoryScreen", 30)
 		if not victory or not context.isAlive() then return end
 		table.insert(state.conns, context.connect(victory.OnClientEvent, function(_, mode, winner)
-			local sounds = rawget(globals, "__pulseGameSounds")
+			local sounds = rawget(globals, "__staticGameSounds")
 			local winners = type(sounds) == "table" and sounds.WIN and sounds.WIN[tostring(mode)]
 			if state.acted and winners and winners[tostring(winner)] == true then state.wins += 1 end
 			pcall(state.say, "END " .. tostring(mode) .. " " .. tostring(winner))
@@ -24267,7 +24229,7 @@ function RoleFarm.install(context)
 		state.on.inno, state.on.sheriff, state.on.murder, state.on.exp = false, false, false, false
 		RoleFarm.hold(context, state, false)
 		for _, connection in state.conns do pcall(function() connection:Disconnect() end) end
-		globals.__pulseRoleFarmUI = nil
+		globals.__staticRoleFarmUI = nil
 	end
 	return state, stop
 end
@@ -24438,7 +24400,7 @@ function BoxFarm.open(context, state)
 	local rare = {Legendary = true, Godly = true, Ancient = true, Unique = true, Vintage = true, Chroma = true}
 	if state.lastRarity and rare[tostring(state.lastRarity)] then
 		pcall(function()
-			local nova = context.environment.getgenv().__pulseMM2Nova
+			local nova = context.environment.getgenv().__staticMM2Nova
 			if nova and nova.Notify then nova:Notify({Title = tostring(state.lastRarity) .. ": " .. state.lastName, Kind = "success"}) end
 		end)
 	end
@@ -24453,7 +24415,7 @@ function BoxFarm.install(context)
 	if tonumber(settings.boxes.delay) == nil then settings.boxes.delay = 1 end
 	local state = {on = false, opened = 0, state = "Off", busy = false}
 	state.openOnce = function() return BoxFarm.open(context, state) end
-	environment.getgenv().__pulseBoxes = state
+	environment.getgenv().__staticBoxes = state
 	environment.task.spawn(function()
 		while context.isAlive() do
 			if state.on and not state.busy then
@@ -24467,7 +24429,7 @@ function BoxFarm.install(context)
 			environment.task.wait(0.3)
 		end
 	end)
-	return state, function() state.on = false; environment.getgenv().__pulseBoxUI = nil end
+	return state, function() state.on = false; environment.getgenv().__staticBoxUI = nil end
 end
 
 function BoxFarm.controls(context, state)
@@ -24589,8 +24551,8 @@ function FlingFeature.down(context, state, target, duration, options)
 	local now = environment.os.clock
 	state.busy = true
 	duration = tonumber(duration) or 0.8
-	globals.__pulseManualFling, globals.__pulseTouchFlinging = true, true
-	globals.__pulseInvisPause = now() + duration + 1.5
+	globals.__staticManualFling, globals.__staticTouchFlinging = true, true
+	globals.__staticInvisPause = now() + duration + 1.5
 	if state.fpdh == nil then state.fpdh = workspace.FallenPartsDestroyHeight end
 	local home, camera = options.home or root.CFrame, workspace.CurrentCamera
 	local subject, seated, platform = camera and camera.CameraSubject, true, false
@@ -24610,10 +24572,10 @@ function FlingFeature.down(context, state, target, duration, options)
 		end
 	end
 	disableCollision()
-	local downward, startY = tonumber(rawget(globals, "__pulseFlingDownV")) or 120000, targetRoot.Position.Y
-	local aim = rawget(globals, "__pulseAimX")
+	local downward, startY = tonumber(rawget(globals, "__staticFlingDownV")) or 120000, targetRoot.Position.Y
+	local aim = rawget(globals, "__staticAimX")
 	local pingOk, ping = pcall(function() return context.player:GetNetworkPing() end)
-	local lead = tonumber(rawget(globals, "__pulseFlingLead")) or math.clamp((aim and tonumber(aim.L) or 0.16)
+	local lead = tonumber(rawget(globals, "__staticFlingLead")) or math.clamp((aim and tonumber(aim.L) or 0.16)
 		+ (pingOk and tonumber(ping) or 0.08) * 2 + 0.05, 0.15, 0.6)
 	local speeds = {1.4, 0.5, 2.3, 0.9}
 	local moveOk, moving = pcall(function() return targetHumanoid.MoveDirection.Magnitude * targetHumanoid.WalkSpeed end)
@@ -24703,7 +24665,7 @@ function FlingFeature.down(context, state, target, duration, options)
 			humanoid.PlatformStand = true
 			local position = vector.new(targetPosition.X, math.max(targetPosition.Y, startY - 3) + height, targetPosition.Z)
 			if predicted and predictedAt and not movingNow then
-				local limit = (tonumber(rawget(globals, "__pulseFlingMaxSpeed")) or 20) * math.clamp(timeNow - predictedAt, 1 / 240, 0.05)
+				local limit = (tonumber(rawget(globals, "__staticFlingMaxSpeed")) or 20) * math.clamp(timeNow - predictedAt, 1 / 240, 0.05)
 				local delta = vector.new(position.X - predicted.X, 0, position.Z - predicted.Z)
 				if delta.Magnitude > limit then
 					local reduced = predicted + delta.Unit * limit
@@ -24714,7 +24676,7 @@ function FlingFeature.down(context, state, target, duration, options)
 			if not grounded then
 				local fallback = vector.new(lastTarget.X, math.max(lastTarget.Y, startY - 3) + height, lastTarget.Z)
 				if (movingNow or not predicted or vector.new(fallback.X - predicted.X, 0, fallback.Z - predicted.Z).Magnitude
-					<= (tonumber(rawget(globals, "__pulseFlingMaxSpeed")) or 20) * 0.05)
+					<= (tonumber(rawget(globals, "__staticFlingMaxSpeed")) or 20) * 0.05)
 					and workspace:Raycast(fallback, vector.new(0, -15, 0), params) then position, grounded = fallback, true end
 			end
 			if movingNow then
@@ -24725,7 +24687,7 @@ function FlingFeature.down(context, state, target, duration, options)
 			root.AssemblyAngularVelocity = vector.zero
 			if grounded and movingNow then
 				root.AssemblyLinearVelocity = vector.new(movement.X, -downward, movement.Z)
-				local spin = tonumber(rawget(globals, "__pulseFlingSpin")) or 60000
+				local spin = tonumber(rawget(globals, "__staticFlingSpin")) or 60000
 				root.AssemblyAngularVelocity = vector.new(spin, spin, spin)
 			end
 			if grounded and not movingNow then root.AssemblyLinearVelocity = vector.new(0, -downward, 0) end
@@ -24772,7 +24734,7 @@ function FlingFeature.down(context, state, target, duration, options)
 		state.fpdh = nil
 		pcall(function() workspace.FallenPartsDestroyHeight = height end)
 	end
-	globals.__pulseInvisPause = now() + 0.2
+	globals.__staticInvisPause = now() + 0.2
 	if userId and (result == "down" or result == "falling") and initialSpeed > 3 then
 		local best, distance = nil, math.huge
 		for index = #candidates, 1, -1 do
@@ -24781,13 +24743,13 @@ function FlingFeature.down(context, state, target, duration, options)
 		end
 		if best then state.leadMem[userId] = best end
 	end
-	globals.__pulseFlingLast = string.format("down res=%s frames=%d dy=%.1f vmin=%.0f V=%d", result, frames, minimumY - startY, minimumVelocity, downward)
-	globals.__pulseFlingLog = type(globals.__pulseFlingLog) == "table" and globals.__pulseFlingLog or {}
-	table.insert(globals.__pulseFlingLog, string.format("%s %s spd=%.0f lead=%.2f mult=%.2f mem=%s res=%s fr=%d t=%.2f dy=%.1f vmin=%.0f spoof=%d",
+	globals.__staticFlingLast = string.format("down res=%s frames=%d dy=%.1f vmin=%.0f V=%d", result, frames, minimumY - startY, minimumVelocity, downward)
+	globals.__staticFlingLog = type(globals.__staticFlingLog) == "table" and globals.__staticFlingLog or {}
+	table.insert(globals.__staticFlingLog, string.format("%s %s spd=%.0f lead=%.2f mult=%.2f mem=%s res=%s fr=%d t=%.2f dy=%.1f vmin=%.0f spoof=%d",
 		environment.os.date("%H:%M:%S"), tostring(target.Name), initialSpeed, lead, multiplier, tostring(userId and state.leadMem[userId]),
 		result, frames, now() - started, minimumY - startY, minimumVelocity, spoofCount))
-	while #globals.__pulseFlingLog > 10 do table.remove(globals.__pulseFlingLog, 1) end
-	globals.__pulseManualFling, globals.__pulseTouchFlinging, state.busy = false, false, false
+	while #globals.__staticFlingLog > 10 do table.remove(globals.__staticFlingLog, 1) end
+	globals.__staticManualFling, globals.__staticTouchFlinging, state.busy = false, false, false
 	return result == "down" or result == "falling" or result == "gone", result
 end
 
@@ -24830,10 +24792,10 @@ function FlingFeature.persist(context, state, player, options)
 		local humanoid = own and own:FindFirstChildOfClass("Humanoid")
 		if not humanoid or humanoid.Health <= 0 then result = "me"; break end
 		if state.active or state.busy then environment.task.wait(0.05); continue end
-		attempts, state.active, globals.__pulseManualFling = attempts + 1, true, true
+		attempts, state.active, globals.__staticManualFling = attempts + 1, true, true
 		local ok, error = pcall(FlingFeature.down, context, state, target, tonumber(options.dur) or 0.8)
-		if not ok then globals.__pulseFlingLast = "down err " .. tostring(error) end
-		globals.__pulseManualFling, globals.__pulseTouchFlinging, state.active = false, false, false
+		if not ok then globals.__staticFlingLast = "down err " .. tostring(error) end
+		globals.__staticManualFling, globals.__staticTouchFlinging, state.active = false, false, false
 		local finished = environment.os.clock()
 		while environment.os.clock() - finished < 0.3 do
 			environment.task.wait(0.05)
@@ -24841,10 +24803,10 @@ function FlingFeature.persist(context, state, player, options)
 		end
 	end
 	if token == state.token then state.target = nil end
-	globals.__pulseFlingLog = type(globals.__pulseFlingLog) == "table" and globals.__pulseFlingLog or {}
-	table.insert(globals.__pulseFlingLog, string.format("%s persist %s tries=%d t=%.1f res=%s",
+	globals.__staticFlingLog = type(globals.__staticFlingLog) == "table" and globals.__staticFlingLog or {}
+	table.insert(globals.__staticFlingLog, string.format("%s persist %s tries=%d t=%.1f res=%s",
 		environment.os.date("%H:%M:%S"), player.Name, attempts, environment.os.clock() - started, result))
-	while #globals.__pulseFlingLog > 10 do table.remove(globals.__pulseFlingLog, 1) end
+	while #globals.__staticFlingLog > 10 do table.remove(globals.__staticFlingLog, 1) end
 	return result == "gone" or result == "dead" or result == "down", result
 end
 
@@ -24853,12 +24815,12 @@ function FlingFeature.player(context, state, player)
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	if not humanoid or humanoid.Health <= 0 then return end
-	state.active, context.environment.getgenv().__pulseManualFling = true, true
+	state.active, context.environment.getgenv().__staticManualFling = true, true
 	context.environment.task.spawn(function()
 		local ok, error = pcall(FlingFeature.down, context, state, character, 0.8)
 		local globals = context.environment.getgenv()
-		if not ok then globals.__pulseFlingLast = "down err " .. tostring(error) end
-		globals.__pulseManualFling, globals.__pulseTouchFlinging, state.active = false, false, false
+		if not ok then globals.__staticFlingLast = "down err " .. tostring(error) end
+		globals.__staticManualFling, globals.__staticTouchFlinging, state.active = false, false, false
 	end)
 end
 
@@ -24874,7 +24836,7 @@ function FlingFeature.installTouch(context)
 				if not enabled or busy then return end
 				local target = hit and hit:FindFirstAncestorWhichIsA("Model")
 				local player = target and context.players:GetPlayerFromCharacter(target)
-				local fling = rawget(environment.getgenv(), "__pulseFlingDown")
+				local fling = rawget(environment.getgenv(), "__staticFlingDown")
 				if not player or player == context.player or type(fling) ~= "function" then return end
 				busy = true
 				environment.task.spawn(function()
@@ -24907,7 +24869,7 @@ function FlingFeature.hump(context, state, target)
 	if not humanoid or not root or not targetRoot or humanoid.Health <= 0 then return end
 
 	state.humping = true
-	globals.__pulseTouchFlinging, globals.__pulseManualFling, globals.__pulseFlingTargetChar = true, true, target
+	globals.__staticTouchFlinging, globals.__staticManualFling, globals.__staticFlingTargetChar = true, true, target
 
 	local seated, animation = true, nil
 	pcall(function() seated = humanoid:GetStateEnabled(environment.Enum.HumanoidStateType.Seated) end)
@@ -24943,7 +24905,7 @@ function FlingFeature.hump(context, state, target)
 		pcall(function() humanoid:SetStateEnabled(environment.Enum.HumanoidStateType.Seated, seated) end)
 		pcall(function() if humanoid.Health > 0 then humanoid:ChangeState(environment.Enum.HumanoidStateType.GettingUp) end end)
 
-		globals.__pulseTouchFlinging, globals.__pulseManualFling, globals.__pulseFlingTargetChar = false, false, nil
+		globals.__staticTouchFlinging, globals.__staticManualFling, globals.__staticFlingTargetChar = false, false, nil
 		state.humping = false
 	end)
 end
@@ -24967,7 +24929,7 @@ function FlingFeature.orbit(context, state, target)
 
 		if not character or not humanoid or not root or humanoid.Health <= 0 then return end
 
-		globals.__pulseTouchFlinging, globals.__pulseManualFling = true, true
+		globals.__staticTouchFlinging, globals.__staticManualFling = true, true
 		local home, height, seated = root.CFrame, context.workspace.FallenPartsDestroyHeight, true
 		pcall(function() seated = humanoid:GetStateEnabled(environment.Enum.HumanoidStateType.Seated) end)
 
@@ -24996,7 +24958,7 @@ function FlingFeature.orbit(context, state, target)
 			pcall(function()
 				root.CFrame = environment.CFrame.new(position, center)
 				root.AssemblyAngularVelocity = environment.Vector3.zero
-				root.AssemblyLinearVelocity = environment.Vector3.new(0, -(tonumber(rawget(globals, "__pulseFlingDownV")) or 120000), 0)
+				root.AssemblyLinearVelocity = environment.Vector3.new(0, -(tonumber(rawget(globals, "__staticFlingDownV")) or 120000), 0)
 			end)
 			context.runService.Heartbeat:Wait()
 		end
@@ -25017,7 +24979,7 @@ function FlingFeature.orbit(context, state, target)
 		end
 
 		pcall(function() context.workspace.FallenPartsDestroyHeight = height end)
-		globals.__pulseTouchFlinging, globals.__pulseManualFling = false, false
+		globals.__staticTouchFlinging, globals.__staticManualFling = false, false
 	end)
 end
 
@@ -25064,7 +25026,7 @@ function FlingFeature.installClick(context)
 		billboard.Name, billboard.Size, billboard.AlwaysOnTop, billboard.Adornee = "PulseFlingHit", environment.UDim2.fromOffset(14, 14), true, part
 		pcall(function() billboard.Parent = context.coreGui end)
 		if billboard.Parent ~= context.coreGui then pcall(function() billboard.Parent = context.player:FindFirstChildOfClass("PlayerGui") end) end
-		pcall(function() globals.__pulseBBMirror.add(billboard) end)
+		pcall(function() globals.__staticBBMirror.add(billboard) end)
 		local circle = environment.Instance.new("Frame")
 		circle.Size, circle.BackgroundColor3 = environment.UDim2.fromScale(1, 1), environment.Color3.fromRGB(255, 80, 80)
 		circle.BackgroundTransparency, circle.BorderSizePixel, circle.Parent = 0.15, 0, billboard
@@ -25098,7 +25060,7 @@ function FlingFeature.installClick(context)
 		mark(character)
 		if state.humpEnabled then FlingFeature.hump(context, state, character); return end
 		environment.task.spawn(function()
-			local fling = rawget(globals, "__pulseFlingChar")
+			local fling = rawget(globals, "__staticFlingChar")
 			if type(fling) == "function" then pcall(fling, character, 0.9) end
 		end)
 	end)
@@ -25140,17 +25102,18 @@ end
 function FlingFeature.install(context)
 	local environment, globals = context.environment, context.environment.getgenv()
 	local state = {busy = false, active = false, token = 0, target = nil}
-	globals.__pulseFlingDown = function(target, duration, options) return FlingFeature.down(context, state, target, duration, options) end
-	globals.__pulseFlingChar = function(target, duration)
+	globals.__staticFlingDown = function(target, duration, options) return FlingFeature.down(context, state, target, duration, options) end
+	globals.__staticFlingChar = function(target, duration)
 		if not target then return end
-		local fling = rawget(globals, "__pulseFlingDown")
+		local fling = rawget(globals, "__staticFlingDown")
 		if type(fling) ~= "function" then return end
-		-- Instant fling: no waiting, immediate execution
+		local started = environment.os.clock()
+		while globals.__staticManualFling and environment.os.clock() - started < 3 do environment.task.wait(0.05) end
 		pcall(fling, target, duration or 0.8)
 	end
-	globals.__pulseFlingPlayer = function(player) return FlingFeature.player(context, state, player) end
-	globals.__pulseFlingPersist = function(player, options) return FlingFeature.persist(context, state, player, options) end
-	globals.__pulseFlingCancel = function() state.token += 1 end
+	globals.__staticFlingPlayer = function(player) return FlingFeature.player(context, state, player) end
+	globals.__staticFlingPersist = function(player, options) return FlingFeature.persist(context, state, player, options) end
+	globals.__staticFlingCancel = function() state.token += 1 end
 	FlingFeature.installTouch(context)
 	local stopClick = FlingFeature.installClick(context)
 	local section = context.section
@@ -25202,8 +25165,8 @@ function FlingFeature.install(context)
 	local function stop()
 		state.token += 1
 		stopClick()
-		globals.__pulseFlingDown, globals.__pulseFlingChar, globals.__pulseFlingPlayer = nil, nil, nil
-		globals.__pulseFlingPersist, globals.__pulseFlingCancel = nil, nil
+		globals.__staticFlingDown, globals.__staticFlingChar, globals.__staticFlingPlayer = nil, nil, nil
+		globals.__staticFlingPersist, globals.__staticFlingCancel = nil, nil
 	end
 	return state, stop
 end
@@ -25501,9 +25464,9 @@ end
 
 function EspBox.animation(context, player)
 	local settings = context.settings
-	if settings.boxAnim ~= "Pulse" and settings.boxAnim ~= "Breathe" then return 1, 0 end
+	if settings.boxAnim ~= "Static" and settings.boxAnim ~= "Breathe" then return 1, 0 end
 	local time = context.environment.os.clock() * (settings.boxAnimSpeed or 1) + (player and player.UserId % 89 * 0.37 or 0)
-	if settings.boxAnim == "Pulse" then return 0.7 + 0.3 * (0.5 + 0.5 * math.sin(time * 4.2)), 0 end
+	if settings.boxAnim == "Static" then return 0.7 + 0.3 * (0.5 + 0.5 * math.sin(time * 4.2)), 0 end
 	return 1, 0.5 + 0.5 * math.sin(time * 2.6)
 end
 
@@ -26572,7 +26535,7 @@ function EspChams.animate(state, options, previous)
 
 	local phase = settings.chamsAnim ~= "None" and 0.5 + 0.5 * math.sin(now * settings.chamsSpeed * math.pi * 2 + options.player.UserId % 89 * 0.41) or 0
 	local fillFactor, edgeFactor, color = 1, 1, saved.fill
-	if settings.chamsAnim == "Pulse" then fillFactor = 0.45 + 0.55 * phase end
+	if settings.chamsAnim == "Static" then fillFactor = 0.45 + 0.55 * phase end
 	if settings.chamsAnim == "Breathe" then edgeFactor = 0.3 + 0.7 * phase end
 	if settings.chamsAnim == "Flow" then color = color:Lerp(settings.chamsFlow, phase) end
 	if saved.flash > 0 then color = color:Lerp(state.colors.white, saved.flash * 0.55) end
@@ -26983,7 +26946,7 @@ end
 function EspChams.apply(state, options)
 	if not state.settings.chams then EspChams.drop(state, options.player); return end
 	local context, environment = state.context, state.context.environment
-	local remote = environment.getgenv().__pulseRemoteSkin
+	local remote = environment.getgenv().__staticRemoteSkin
 	local replacement = remote and remote.list[options.player] and remote.list[options.player].model
 	if replacement and replacement.Parent then options.character = replacement end
 	local highlight = state.highlights[options.player]
@@ -27177,7 +27140,7 @@ function EspGhost.install(state)
 	local context, environment = state.context, state.context.environment
 	local ghost = {by = {}, last = {}, leak = {}, far = 1000000, keep = 20}
 	state.ghost = ghost
-	environment.getgenv().__pulseDesyncGhost = ghost
+	environment.getgenv().__staticDesyncGhost = ghost
 	context.connect(context.runService.Heartbeat, function() EspGhost.update(state) end)
 	environment.task.spawn(function()
 		local storage = environment.game:GetService("ReplicatedStorage")
@@ -27314,7 +27277,7 @@ local EspFeature = {}
 
 function EspFeature.create(context)
 	local environment, globals = context.environment, context.environment.getgenv()
-	if globals.__pulseESP2Stop then pcall(globals.__pulseESP2Stop) end
+	if globals.__staticESP2Stop then pcall(globals.__staticESP2Stop) end
 	local settings = EspSettings.create(environment, context.configuration)
 	local state = {context = context, settings = settings, role = EspRole.create(environment.os.clock),
 		projection = EspProjection.create(environment), objects = {}, labels = {}, retryAt = {}, colorHandles = {}, text = EspText.create(),
@@ -27332,7 +27295,7 @@ function EspFeature.create(context)
 		end
 	end
 	settings.stop = function() EspFeature.stop(state) end
-	globals.__pulseESP2, globals.__pulseESP2Stop = settings, settings.stop
+	globals.__staticESP2, globals.__staticESP2Stop = settings, settings.stop
 
 	local event = context.runService.PreRender or context.runService.RenderStepped
 	state.connection = context.connect(event, function(delta)
@@ -27634,7 +27597,7 @@ function EspFeature.boxControls(state)
 		EspFeature.slider(state, {field = "boxPad", text = "Box Padding", min = -6, max = 20, decimals = 0})
 		EspFeature.dropdown(state, "boxColMode", "Box Color Source", sources)
 		EspFeature.colorpicker(state, "boxCol", "Box Custom Color")
-		EspFeature.dropdown(state, "boxAnim", "Box Animation", {"None", "Pulse", "Breathe"})
+		EspFeature.dropdown(state, "boxAnim", "Box Animation", {"None", "Static", "Breathe"})
 		EspFeature.slider(state, {field = "boxAnimSpeed", text = "Box Animation Speed", min = 0.2, max = 4, decimals = 1})
 		EspFeature.dropdown(state, "murdBox", "Murderer Box Style", {"Same", "Corners", "Full", "Rounded", "Double", "Brackets"})
 	end)
@@ -27837,7 +27800,7 @@ function EspFeature.chamsControls(state)
 		EspFeature.colorpicker(state, "chamsHidden", "Hidden Fill")
 	end)
 	EspFeature.toggle(state, "chamsOverlay", "Glow Overlay")
-	EspFeature.dropdown(state, "chamsAnim", "Animation", {"None", "Pulse", "Breathe", "Flow"})
+	EspFeature.dropdown(state, "chamsAnim", "Animation", {"None", "Static", "Breathe", "Flow"})
 	EspFeature.toggle(state, "chamsFlash", "Flash On Sight")
 end
 
@@ -27847,15 +27810,15 @@ local KNIFE_TARGET_PARTS = {"HumanoidRootPart", "UpperTorso", "Torso", "LowerTor
 function MurderFeature.install(context)
 	local state = {context = context, killAll = false, killGun = false, aura = false, radius = 20}
 	local globals = context.environment.getgenv()
-	globals.__pulseSetKillAll = function(enabled) state.killAll = not not enabled end
-	globals.__pulseGetKillAll = function() return state.killAll end
-	globals.__pulseKillPass = function() return MurderFeature.killPass(state) end
+	globals.__staticSetKillAll = function(enabled) state.killAll = not not enabled end
+	globals.__staticGetKillAll = function() return state.killAll end
+	globals.__staticKillPass = function() return MurderFeature.killPass(state) end
 
 	local section = context.section
 	section:Group({Title = "Murder", Side = "Right"})
 	section:Toggle({Text = "Kill Aura", Default = false, Callback = function(enabled)
 		state.aura = not not enabled
-		globals.__pulseKillAuraOn = state.aura
+		globals.__staticKillAuraOn = state.aura
 	end, Settings = function()
 		section:Slider({Text = "Aura Radius", Min = 5, Max = 200, Default = 20, Decimals = 0, Suffix = " studs",
 			Callback = function(value) state.radius = value end})
@@ -27867,15 +27830,16 @@ function MurderFeature.install(context)
 		if player then MurderFeature.killPlayer(state, player) end
 	end})
 
-	-- Friends tab: target marking protection for AimBot
 	local friendsState = {enabled = false, targets = {}}
 	globals.__pulseFriends = friendsState
+	section:Header("Friends")
 	section:Toggle({Text = "Friends", Default = false, Callback = function(enabled)
 		friendsState.enabled = not not enabled
 	end})
 	section:PlayerList({ExcludeLocal = true, Checkbox = true, OnSelect = function(player, checked)
 		if player then friendsState.targets[player.UserId] = checked and true or nil end
 	end})
+
 
 	context.environment.task.spawn(function()
 		while context.isAlive() do
@@ -27899,7 +27863,7 @@ end
 
 function MurderFeature.isMurderer(state, roles)
 	local context, globals = state.context, state.context.environment.getgenv()
-	local duel = globals.__pulseDuel
+	local duel = globals.__staticDuel
 	if duel and duel.on then
 		return MurderFeature.findKnife(state, context.player.Character) ~= nil
 			or MurderFeature.findKnife(state, context.player:FindFirstChild("Backpack")) ~= nil
@@ -27928,7 +27892,7 @@ function MurderFeature.validTarget(state, player, roles)
 	local context = state.context
 	if player == context.player then return false end
 
-	local duel = context.environment.getgenv().__pulseDuel
+	local duel = context.environment.getgenv().__staticDuel
 	if duel and duel.on then
 		return duel.foes[player.Name] and duel.alive(player) ~= nil or false
 	end
@@ -28377,7 +28341,7 @@ function KnifeAim.marker(state, character, text)
 		label.TextStrokeTransparency, label.Parent = 0.35, marker
 		pcall(function() marker.Parent = context.coreGui end)
 		if marker.Parent ~= context.coreGui then pcall(function() marker.Parent = context.player:FindFirstChildOfClass("PlayerGui") end) end
-		pcall(function() environment.getgenv().__pulseBBMirror.add(marker) end)
+		pcall(function() environment.getgenv().__staticBBMirror.add(marker) end)
 		state.marker = marker
 	end
 
@@ -28396,15 +28360,15 @@ function KnifeAim.throw(state, point)
 
 	local globals = environment.getgenv()
 	pcall(function()
-		local antiAim = rawget(globals, "__pulseAntiAim")
+		local antiAim = rawget(globals, "__staticAntiAim")
 		if not antiAim or not antiAim.desyncAt or environment.os.clock() - antiAim.desyncAt >= 0.2 then return end
-		globals.__pulseShotHold = math.max(tonumber(globals.__pulseShotHold) or 0, environment.os.clock() + 0.45)
+		globals.__staticShotHold = math.max(tonumber(globals.__staticShotHold) or 0, environment.os.clock() + 0.45)
 		local started = environment.os.clock()
 		while environment.os.clock() - started < (antiAim.fireDelay or 0.05) do context.runService.Heartbeat:Wait() end
 	end)
 
 	state.lastThrow, state.throws = environment.os.clock(), state.throws + 1
-	globals.__pulseKnifeBypass = true
+	globals.__staticKnifeBypass = true
 	pcall(function() remote:FireServer(handle.CFrame, environment.CFrame.new(point)) end)
 	return true
 end
@@ -28461,7 +28425,7 @@ function KnifeAim.installHook(state)
 		local weapons = module and environment.require(module)
 		if not weapons then return end
 
-		local previous = globals.__pulseThrowWS
+		local previous = globals.__staticThrowWS
 		local oldMouse = previous and previous.origMouse or weapons.GetMouseTargetCFrame
 		local oldTarget = previous and previous.origTarget or weapons.GetTargetPosition
 		local function mouse(self, ...)
@@ -28476,7 +28440,7 @@ function KnifeAim.installHook(state)
 		end
 		weapons.GetMouseTargetCFrame, weapons.GetTargetPosition = mouse, target
 		if weapons.GetMouseTargetCFrame == mouse and weapons.GetTargetPosition == target then
-			globals.__pulseThrowWS = {mouse = mouse, tgt = target, origMouse = oldMouse, origTarget = oldTarget}
+			globals.__staticThrowWS = {mouse = mouse, tgt = target, origMouse = oldMouse, origTarget = oldTarget}
 			state.hooked = true
 		end
 	end)
@@ -28516,14 +28480,14 @@ end
 function KnifeAim.install(context, murder)
 	local environment, globals = context.environment, context.environment.getgenv()
 	local state = KnifeAim.create(context, murder)
-	globals.__pulseKnifeAim, globals.__pulseKnifeBypass = state, true
+	globals.__staticKnifeAim, globals.__staticKnifeBypass = state, true
 	state.aim = function() return KnifeAim.aim(state) end
 	state.solve = function(character, origin, detail) return KnifeAim.predict(state, character, origin, detail) end
 	state.pick = function(origin, roles) return KnifeAim.candidates(state, origin, roles) end
 	state.origin = function() return KnifeAim.origin(state) end
 
 	local lastManual = 0
-	globals.__pulseThrowKnife = function()
+	globals.__staticThrowKnife = function()
 		if environment.os.clock() - lastManual < 0.2 or not MurderFeature.ready(murder, context.roles()) then return false end
 		local enabled = state.on
 		state.on, state.cache = true, nil
@@ -29376,7 +29340,7 @@ function CombatTracer.install(context)
 	local state = CombatTracer.create(context)
 	state.lastShots = {}
 	local environment, globals = context.environment, context.environment.getgenv()
-	globals.__pulseTracers = state
+	globals.__staticTracers = state
 	state.knife.opts = function(options) return CombatTracer.knifeOptions(state, options) end
 	state.build = function(...) return CombatTracer.build(state, ...) end
 	state.find = function(...) return CombatTracer.detour(state, ...) end
@@ -29496,12 +29460,12 @@ end
 
 function AntiAim.busy(state, now)
 	local globals = state.context.environment.getgenv()
-	if now < (tonumber(globals.__pulseShotHold) or 0) or now - (state.toolAt or 0) < 0.35 then return true end
-	if globals.__pulseFlyActive or globals.__pulseManualFling or globals.__pulseTouchFlinging or globals.__pulseFlingTargetChar then return true end
+	if now < (tonumber(globals.__staticShotHold) or 0) or now - (state.toolAt or 0) < 0.35 then return true end
+	if globals.__staticFlyActive or globals.__staticManualFling or globals.__staticTouchFlinging or globals.__staticFlingTargetChar then return true end
 	if state.context.configuration.autoFlingSheriff then return true end
-	if globals.__pulseInvis and globals.__pulseInvis.active then return true end
-	if (tonumber(globals.__pulseBombJumpUntil) or 0) > now then return true end
-	local farm = globals.__pulseFarmAPI
+	if globals.__staticInvis and globals.__staticInvis.active then return true end
+	if (tonumber(globals.__staticBombJumpUntil) or 0) > now then return true end
+	local farm = globals.__staticFarmAPI
 	if farm and farm.getEnabled and farm.getEnabled() then return true end
 	return state.hasMover
 end
@@ -29573,7 +29537,7 @@ function AntiAim.shouldPause(state, character, position, now)
 	local pause = (knife or gun) and context.inputService:IsMouseButtonPressed(environment.Enum.UserInputType.MouseButton1) or false
 	if knife and not pause then
 		local globals = environment.getgenv()
-		pause = globals.__pulseKillAuraOn or globals.__pulseGetKillAll and globals.__pulseGetKillAll() or false
+		pause = globals.__staticKillAuraOn or globals.__staticGetKillAll and globals.__staticGetKillAll() or false
 		if not pause then
 			for _, player in context.players:GetPlayers() do
 				if player == context.player then continue end
@@ -29668,7 +29632,7 @@ function AntiAim.predict(state, position, now)
 	end
 	if settings.side ~= false then
 		local fake = environment.CFrame.lookAt(frame.Position, frame.Position + facing)
-		local muzzle = rawget(environment.getgenv(), "__pulseMuzzle")
+		local muzzle = rawget(environment.getgenv(), "__staticMuzzle")
 		if muzzle and muzzle.poseClear and not muzzle.poseClear(fake) then
 			local opposite = environment.CFrame.lookAt(frame.Position, frame.Position - facing)
 			fake = muzzle.poseClear(opposite) and opposite or nil
@@ -29734,8 +29698,8 @@ function AntiAim.install(context)
 	end
 	state.coinParams = environment.OverlapParams.new()
 	state.coinParams.FilterType = environment.Enum.RaycastFilterType.Include
-	globals.__pulseFakePos = {active = false, off = environment.Vector3.zero}
-	globals.__pulseAntiAim = state
+	globals.__staticFakePos = {active = false, off = environment.Vector3.zero}
+	globals.__staticAntiAim = state
 	pcall(function() if tonumber(environment.getfflag("WorldStepMax")) < 0 then environment.setfflag("WorldStepMax", "30") end end)
 
 	context.connect(context.runService.Heartbeat, function()
@@ -29755,7 +29719,7 @@ function AntiAim.install(context)
 		settings.on = false
 		for _, connection in state.characterConnections do pcall(function() connection:Disconnect() end) end
 		pcall(function() context.runService:UnbindFromRenderStep("PulseFakePos") end)
-		globals.__pulseFakePos.active, globals.__pulseFakePos.off = false, environment.Vector3.zero
+		globals.__staticFakePos.active, globals.__staticFakePos.off = false, environment.Vector3.zero
 	end
 end
 
@@ -29780,7 +29744,7 @@ function MuzzleGuard.lineClear(state, origin, finish)
 	local hit = context.workspace:Raycast(origin, delta * ((distance + (state.ext or 0.6)) / distance), state.rayParams)
 	if not hit then return true end
 	local model = hit.Instance and hit.Instance:FindFirstAncestorOfClass("Model")
-	local aim = rawget(context.environment.getgenv(), "__pulseAimX")
+	local aim = rawget(context.environment.getgenv(), "__staticAimX")
 	return model ~= nil and model:FindFirstChildOfClass("Humanoid") ~= nil and aim ~= nil and aim.target == model
 end
 
@@ -29788,7 +29752,7 @@ function MuzzleGuard.nearby(state, root)
 	local context, vector = state.context, state.context.environment.Vector3
 	table.clear(state.nearby)
 	if state.nearOff then return end
-	local aim = rawget(context.environment.getgenv(), "__pulseAimX")
+	local aim = rawget(context.environment.getgenv(), "__staticAimX")
 	local target = aim and aim.target
 	for _, player in context.players:GetPlayers() do
 		if player == context.player then continue end
@@ -29904,8 +29868,8 @@ function MuzzleGuard.step(state)
 	local context, environment = state.context, state.context.environment
 	local globals = environment.getgenv()
 	local character, root, head, muzzle, humanoid = MuzzleGuard.parts(state)
-	if not character or globals.__pulseManualFling or globals.__pulseTouchFlinging or globals.__pulseFlingTargetChar
-		or globals.__pulseInvis and globals.__pulseInvis.active == true or globals.__pulseMuzzleOff then
+	if not character or globals.__staticManualFling or globals.__staticTouchFlinging or globals.__staticFlingTargetChar
+		or globals.__staticInvis and globals.__staticInvis.active == true or globals.__staticMuzzleOff then
 		if state.hold.cf then MuzzleGuard.reset(state) end
 		state.at, state.guarding = nil, false
 		return
@@ -29940,12 +29904,12 @@ function MuzzleGuard.step(state)
 				state.guardFrames, clear = state.guardFrames + 1, true
 			end
 		end
-		globals.__pulseShotHold = math.max(tonumber(globals.__pulseShotHold) or 0, now + 0.2)
+		globals.__staticShotHold = math.max(tonumber(globals.__staticShotHold) or 0, now + 0.2)
 	end
 	if (state.wantUntil or 0) <= now and state.hold.cf then MuzzleGuard.reset(state) end
 	state.guarding = state.hold.cf ~= nil
 
-	local antiAim = state.aaWait ~= false and rawget(globals, "__pulseAntiAim")
+	local antiAim = state.aaWait ~= false and rawget(globals, "__staticAntiAim")
 	local spoofRecent = antiAim and antiAim.sideAt and now - antiAim.sideAt < 0.03
 	if spoofRecent and clear and environment.typeof(antiAim.fakeCF) == "CFrame" and state.aaCheck ~= false then
 		local pose = environment.CFrame.new(current.Position) * antiAim.fakeCF.Rotation
@@ -29973,7 +29937,7 @@ function MuzzleGuard.install(context)
 	state.overlapParams.FilterType, state.overlapParams.RespectCanCollide = environment.Enum.RaycastFilterType.Exclude, true
 	state.request = function(duration) state.wantUntil = math.max(state.wantUntil or 0, environment.os.clock() + (duration or 0.5)) end
 	state.poseClear = function(frame) return MuzzleGuard.poseClear(state, frame) end
-	globals.__pulseMuzzle = state
+	globals.__staticMuzzle = state
 
 	context.connect(context.runService.Heartbeat, function() pcall(MuzzleGuard.hold, state) end)
 	context.connect(context.runService.PreSimulation, function()
@@ -30078,7 +30042,7 @@ function CustomSounds.asset(state, name)
 	end)
 	local path = "PulseHub/mm2sounds/" .. name .. ".ogg"
 	if not (type(environment.isfile) == "function" and environment.isfile(path)) then
-		local data = rawget(environment.getgenv(), "__pulseData")
+		local data = rawget(environment.getgenv(), "__staticData")
 		local encoded = data and data.take and data.take("snd_" .. name)
 		if encoded then pcall(function() environment.writefile(path, buffer.tostring(OfflineFiles._decodeBuffer(encoded))) end) end
 	end
@@ -30188,7 +30152,7 @@ function CustomSounds.install(context)
 	settings.shotSnd, settings.killSnd = settings.shotSnd or "Off", settings.killSnd or "Off"
 	if settings.sndVol == nil then settings.sndVol = 60 end
 	local state = {context = context, settings = settings, assets = {}, muted = {}, watched = {}, lastShot = 0}
-	environment.getgenv().__pulsePreviewSound = function(asset) return CustomSounds.play(state, asset) end
+	environment.getgenv().__staticPreviewSound = function(asset) return CustomSounds.play(state, asset) end
 
 	local section = context.section
 	section:Header("Custom Sounds")
@@ -30278,7 +30242,7 @@ function GameSounds.asset(state, value)
 		if not (type(environment.isfile) == "function" and environment.isfile(path)) then
 			local allowed = false
 			for _, item in GAME_SOUND_LIBRARY.finish do if item[2] == value then allowed = true; break end end
-			local data = rawget(environment.getgenv(), "__pulseData")
+			local data = rawget(environment.getgenv(), "__staticData")
 			local encoded = allowed and data and data.take and data.take(name)
 			if type(environment.writefile) ~= "function" or not encoded then return nil end
 			pcall(environment.makefolder, "PulseHub")
@@ -30452,8 +30416,8 @@ function GameSounds.install(context)
 	local state = {context = context, cfg = {roll = "Game", reveal = "Game", win = "Game", vol = 100},
 		original = {}, capTokens = {}, assets = {}, WIN = GAME_WIN_RESULTS, LIB = GAME_SOUND_LIBRARY,
 		won = false, wonAt = -math.huge, endAt = 0, endPending = false}
-	globals.__pulseGameSounds = state
-	globals.__pulseGameSoundsUI = function(section) GameSounds.controls(state, section) end
+	globals.__staticGameSounds = state
+	globals.__staticGameSoundsUI = function(section) GameSounds.controls(state, section) end
 	GameSounds.controls(state, context.section)
 
 	environment.task.spawn(function()
@@ -30476,7 +30440,7 @@ function GameSounds.install(context)
 		state.cfg.roll, state.cfg.reveal = "Game", "Game"
 		GameSounds.refresh(state)
 		if state.own then pcall(function() state.own:Destroy() end) end
-		globals.__pulseGameSoundsUI = nil
+		globals.__staticGameSoundsUI = nil
 	end
 end
 
@@ -30661,7 +30625,7 @@ function PulseSkin.icon(environment, spec)
 		local path = "PulseHub/pskin_" .. spec.icon .. "_v1.png"
 		if type(environment.isfolder) == "function" and not environment.isfolder("PulseHub") then environment.makefolder("PulseHub") end
 		if type(environment.isfile) ~= "function" or not environment.isfile(path) then
-			local data = rawget(environment.getgenv(), "__pulseData")
+			local data = rawget(environment.getgenv(), "__staticData")
 			local encoded = data and data.take and data.take("pskin_" .. spec.icon)
 			if type(encoded) == "string" and #encoded > 64 then environment.writefile(path, buffer.tostring(OfflineFiles._decodeBuffer(encoded))) end
 		end
@@ -30682,14 +30646,14 @@ function PulseSkin.register(state, database, sync)
 		table.insert(items, spec)
 		local grip = {table.unpack(spec.g)}
 		for _, value in {1, 0, 0, 0, 1, 0, 0, 0, 1} do table.insert(grip, value) end
-		database[spec.key] = {t = spec.t, r = "Pulse", nm = spec.nm, img = spec.img, src = "pulse", d = {c = "Folder", n = "PulseCX", p = {}, k = {}}, g = grip, a1 = spec.a1, hold = spec.hold, cx = spec}
-		sync.Weapons[spec.key] = {ItemName = spec.nm, ItemType = spec.t, Rarity = "Pulse", Image = spec.img, Year = 2026, ItemID = spec.asset, PulseCustom = true}
+		database[spec.key] = {t = spec.t, r = "Static", nm = spec.nm, img = spec.img, src = "pulse", d = {c = "Folder", n = "PulseCX", p = {}, k = {}}, g = grip, a1 = spec.a1, hold = spec.hold, cx = spec}
+		sync.Weapons[spec.key] = {ItemName = spec.nm, ItemType = spec.t, Rarity = "Static", Image = spec.img, Year = 2026, ItemID = spec.asset, PulseCustom = true}
 	end
-	if type(sync.Rarities) == "table" and not sync.Rarities.Pulse then sync.Rarities.Pulse = {Name = "Pulse", Hex = "#2ef2ff", Sort = 60, Color = {r = 46, g = 242, b = 255}} end
+	if type(sync.Rarities) == "table" and not sync.Rarities.Pulse then sync.Rarities.Pulse = {Name = "Static", Hex = "#2ef2ff", Sort = 60, Color = {r = 46, g = 242, b = 255}} end
 	if type(sync.Rarity) == "table" and not sync.Rarity.Pulse then sync.Rarity.Pulse = environment.Color3.fromRGB(46, 242, 255) end
 	state.pulse = {context = state.context, templates = {}, loading = {}, ITEMS = items, byKey = byKey}
 	local globals = environment.getgenv()
-	globals.__pulseCX = state.pulse
+	globals.__staticCX = state.pulse
 	pcall(function()
 		local cache = type(environment.getrenv) == "function" and environment.getrenv()._G.Cache or _G.Cache
 		if type(cache) ~= "table" then return end
@@ -31533,7 +31497,7 @@ function WeaponSkins.firstPerson(state)
 	local camera = context.workspace.CurrentCamera
 	if context.player.CameraMode == environment.Enum.CameraMode.LockFirstPerson then return 1 end
 	if camera and head and (camera.CFrame.Position - head.Position).Magnitude < 1.4 then return 1 end
-	local invisible = rawget(environment.getgenv(), "__pulseInvis")
+	local invisible = rawget(environment.getgenv(), "__staticInvis")
 	if type(invisible) == "table" and invisible.active then return 0.5 end
 	return 0
 end
@@ -31656,7 +31620,7 @@ function WeaponSkins.applyDisplay(state, kind)
 	local torso = kind == "Knife" and state.knifeBelt and character:FindFirstChild("LowerTorso")
 	local belt = torso and torso:FindFirstChild("KnifeBelt")
 	if belt and belt:IsA("Attachment") then
-		local original = rawget(environment.getgenv(), "__pulseMountOrig")
+		local original = rawget(environment.getgenv(), "__staticMountOrig")
 		offset, mount, anchor = (original and original(belt) or belt.CFrame) * attachment:Inverse(), torso, belt.Name
 	end
 	local upper = skin.cx and skin.cx.sling and character:FindFirstChild("UpperTorso")
@@ -31733,7 +31697,7 @@ function RemoteSkins.applyDisplay(state, player, remote, kind)
 	local torso = belt and character:FindFirstChild("LowerTorso")
 	local beltAttachment = torso and torso:FindFirstChild("KnifeBelt")
 	if beltAttachment and beltAttachment:IsA("Attachment") then
-		local original = rawget(environment.getgenv(), "__pulseMountOrig")
+		local original = rawget(environment.getgenv(), "__staticMountOrig")
 		offset, mount, anchor = (original and original(beltAttachment) or beltAttachment.CFrame) * attachment:Inverse(), torso, beltAttachment.Name
 	end
 	local upper = skin.cx and skin.cx.sling and character:FindFirstChild("UpperTorso")
@@ -31868,8 +31832,8 @@ function WeaponSkins.spawn(state, key, amount)
 	amount = amount or 1
 	owned[key] = (owned[key] or 0) + amount
 	local globals = state.context.environment.getgenv()
-	globals.__pulseSpawned = type(globals.__pulseSpawned) == "table" and globals.__pulseSpawned or {}
-	globals.__pulseSpawned[key] = (globals.__pulseSpawned[key] or 0) + amount
+	globals.__staticSpawned = type(globals.__staticSpawned) == "table" and globals.__staticSpawned or {}
+	globals.__staticSpawned[key] = (globals.__staticSpawned[key] or 0) + amount
 	pcall(function() state.inventoryChanged:Fire("Weapons", key, owned[key]) end)
 end
 
@@ -31970,7 +31934,7 @@ function WeaponSkins.controls(state)
 	end})
 	section:Section({Text = "Skin Catalog"})
 	section:Dropdown({Text = "Rarity", Default = "Any", NoSave = true, Options = {
-		{code = "Any", label = "Any"}, {code = "Pulse", label = "Pulse"}, {code = "Ancient", label = "Ancient"},
+		{code = "Any", label = "Any"}, {code = "Static", label = "Static"}, {code = "Ancient", label = "Ancient"},
 		{code = "Godly", label = "Godly"}, {code = "Chroma", label = "Chroma"}, {code = "Unique", label = "Unique"},
 		{code = "Classic", label = "Classic"}, {code = "Legendary", label = "Legendary"}, {code = "Rare", label = "Rare"},
 	}, Callback = function(value) state.rarity = value or "Any"; WeaponSkins.updateCatalog(state) end})
@@ -32163,12 +32127,12 @@ function WeaponSkins.updateRealInventory(state, full)
 	state.realOwned = owned
 
 	local globals = state.context.environment.getgenv()
-	if globals.__pulseSpawnedMig then return end
-	globals.__pulseSpawnedMig = true
-	globals.__pulseSpawned = type(globals.__pulseSpawned) == "table" and globals.__pulseSpawned or {}
+	if globals.__staticSpawnedMig then return end
+	globals.__staticSpawnedMig = true
+	globals.__staticSpawned = type(globals.__staticSpawned) == "table" and globals.__staticSpawned or {}
 	for key, amount in state.profile.Weapons.Owned do
 		if type(key) ~= "string" or type(amount) ~= "number" or amount <= 0 then continue end
-		if not owned[key] and state.DB[key] and globals.__pulseSpawned[key] == nil then globals.__pulseSpawned[key] = amount end
+		if not owned[key] and state.DB[key] and globals.__staticSpawned[key] == nil then globals.__staticSpawned[key] = amount end
 	end
 end
 
@@ -32180,7 +32144,7 @@ end
 
 function WeaponSkins.withRealOwned(state, callback, ...)
 	local globals = state.context.environment.getgenv()
-	local spawned = globals.__pulseSpawned
+	local spawned = globals.__staticSpawned
 	local owned = state.profile.Weapons and state.profile.Weapons.Owned
 	local saved = {}
 	if type(owned) == "table" and type(spawned) == "table" then
@@ -32202,7 +32166,7 @@ function WeaponSkins.scrubTrade(state)
 	local inventory = state.tradeModule and state.tradeModule.TradeInventory
 	local groups = type(inventory) == "table" and type(inventory.Data) == "table" and inventory.Data.Weapons
 	if type(groups) ~= "table" then return end
-	local spawned = state.context.environment.getgenv().__pulseSpawned or {}
+	local spawned = state.context.environment.getgenv().__staticSpawned or {}
 	local owned = state.profile.Weapons and state.profile.Weapons.Owned or {}
 	for _, group in groups do
 		if type(group) ~= "table" then continue end
@@ -32673,11 +32637,11 @@ function WeaponSkins.installInventory(state)
 		if ok and type(trade) == "table" then state.tradeModule = trade end
 	end
 	local globals = environment.getgenv()
-	local originals = globals.__pulseInvOrig
+	local originals = globals.__staticInvOrig
 	if type(originals) ~= "table" or originals.mod ~= inventory then
 		originals = {mod = inventory, ceb = inventory.ConnectEquipButtons, ue = inventory.UpdateEquip,
 			gi = inventory.GenerateInventory, ui = inventory.UpdateInventory}
-		globals.__pulseInvOrig = originals
+		globals.__staticInvOrig = originals
 	end
 	originals.gi = originals.gi or inventory.GenerateInventory
 	originals.ui = originals.ui or inventory.UpdateInventory
@@ -32762,7 +32726,7 @@ end
 
 function WeaponSkins.load(state)
 	local context, environment = state.context, state.context.environment
-	local data = rawget(environment.getgenv(), "__pulseData")
+	local data = rawget(environment.getgenv(), "__staticData")
 	local encoded = data and data.take and data.take("skins_db") or "{}"
 	local database = context.http:JSONDecode(encoded)
 	if type(database) ~= "table" then return end
@@ -32845,7 +32809,7 @@ end
 
 function WeaponSkins.install(context)
 	local environment, globals = context.environment, context.environment.getgenv()
-	for _, name in {"__pulseSkins", "__pulseWeaponSkins"} do
+	for _, name in {"__staticSkins", "__staticWeaponSkins"} do
 		local previous = globals[name]
 		if previous and previous.destroy then pcall(previous.destroy); globals[name] = nil end
 	end
@@ -32914,10 +32878,10 @@ function WeaponSkins.install(context)
 		for _, mesh in state.model.meshes do pcall(function() mesh:Destroy() end) end
 		if state.pulse then
 			for _, template in state.pulse.templates do if template then pcall(function() template:Destroy() end) end end
-			if globals.__pulseCX == state.pulse then globals.__pulseCX = nil end
+			if globals.__staticCX == state.pulse then globals.__staticCX = nil end
 		end
 	end
-	globals.__pulseWeaponSkins = state
+	globals.__staticWeaponSkins = state
 	WeaponSkins.controls(state)
 	environment.task.spawn(function()
 		local ok, raised = pcall(WeaponSkins.load, state)
@@ -32934,7 +32898,7 @@ function GameEffects.load(state)
 	if state.data or state.loading then return end
 	state.loading = true
 	state.context.environment.task.spawn(function()
-		local source = state.context.environment.getgenv().__pulseData
+		local source = state.context.environment.getgenv().__staticData
 		local contents = source and source.take and source.take("fx_effects")
 		if contents then state.data = {} end
 		state.loading = false
@@ -33015,7 +32979,7 @@ function GameEffects.targets(state)
 	if handle then table.insert(targets, handle) end
 	local reference = character and character:FindFirstChild("DisplayRefKnife")
 	local display = reference and reference.Value
-	local skins = context.environment.getgenv().__pulseWeaponSkins
+	local skins = context.environment.getgenv().__staticWeaponSkins
 	local replacement = skins and skins.knifeTargets and skins.knifeTargets() or {}
 	if replacement.handle then
 		if handle then
@@ -33039,7 +33003,7 @@ function GameEffects.refresh(state)
 		GameEffects.clear(target)
 		if state.current and state.current ~= "" then built += GameEffects.build(state, target, state.current) end
 	end
-	state.context.environment.getgenv().__pulseEffectState = {unlockOn = state.enabled, curKey = tostring(state.current),
+	state.context.environment.getgenv().__staticEffectState = {unlockOn = state.enabled, curKey = tostring(state.current),
 		dbHasKey = state.data ~= nil and state.current ~= nil and state.data[state.current] ~= nil, handles = #targets, built = built, dbLoaded = state.data ~= nil}
 end
 
@@ -34491,7 +34455,7 @@ function GameEffects.Kill.headshotLabel(state, anchor, color, white)
 	local billboard = environment.Instance.new("BillboardGui")
 	billboard.Size, billboard.AlwaysOnTop, billboard.LightInfluence = environment.UDim2.fromOffset(260, 60), true, 0
 	billboard.StudsOffsetWorldSpace, billboard.Adornee, billboard.Parent = environment.Vector3.new(0, 1.8, 0), anchor, anchor
-	pcall(function() environment.getgenv().__pulseBBMirror.add(billboard) end)
+	pcall(function() environment.getgenv().__staticBBMirror.add(billboard) end)
 
 	local label = environment.Instance.new("TextLabel")
 	label.BackgroundTransparency, label.Size, label.Text = 1, environment.UDim2.fromScale(1, 1), "HEADSHOT"
@@ -40009,12 +39973,12 @@ end
 function GameEffects.Kill.install(context)
 	local environment, section = context.environment, context.section
 	local globals = environment.getgenv()
-	if type(globals.__pulseKillFXStop) == "function" then pcall(globals.__pulseKillFXStop) end
+	if type(globals.__staticKillFXStop) == "function" then pcall(globals.__staticKillFXStop) end
 
 	local state = GameEffects.Kill.create(context)
 	state.showGen = 0
 	state.stop = function() GameEffects.Kill.stop(state) end
-	globals.__pulseKillFX, globals.__pulseKillFXStop = state, state.stop
+	globals.__staticKillFX, globals.__staticKillFXStop = state, state.stop
 	GameEffects.Kill.observe(state)
 
 	section:Group({Title = "Kill Effects", Side = "Right"})
@@ -40443,7 +40407,7 @@ function AuraHat.step(state)
 		if hat.fx ~= "None" and now - (hat.fxAt or 0) >= 0.025 then
 			hat.fxAt = now
 			if hat.fx == "Rainbow" or hat.fx == "Wave" then AuraHat.paint(state, hat, elapsed * 0.22 % 1, hat.fx == "Wave") end
-			if hat.fx == "Pulse" then AuraHat.pulse(hat, 0.5 - 0.5 * math.cos(elapsed * 3.2)) end
+			if hat.fx == "Static" then AuraHat.pulse(hat, 0.5 - 0.5 * math.cos(elapsed * 3.2)) end
 		end
 		if hat.hide then
 			if now - (hat.hideAt or 0) > 0.5 then hat.hideAt, hat.hideList = now, AuraHat.hiddenParts(environment, hat.character, hat.hide) end
@@ -40510,13 +40474,13 @@ function AuraTint.roots(state, character)
 	local context, globals = state.context, state.context.environment.getgenv()
 	local model
 	if character == context.player.Character then
-		if type(globals.__pulseSkinModel) == "function" then
-			local ok, result = pcall(globals.__pulseSkinModel)
+		if type(globals.__staticSkinModel) == "function" then
+			local ok, result = pcall(globals.__staticSkinModel)
 			if ok then model = result end
 		end
 	else
 		local player = context.players:GetPlayerFromCharacter(character)
-		local remote = rawget(globals, "__pulseRemoteSkin")
+		local remote = rawget(globals, "__staticRemoteSkin")
 		if player and type(remote) == "table" and type(remote.liveModel) == "function" then
 			local ok, result = pcall(remote.liveModel, player)
 			if ok then model = result end
@@ -40569,7 +40533,7 @@ function AuraTint.apply(state, character, remoteOptions)
 	if not character then return end
 	local remote = remoteOptions ~= nil
 	local globals = environment.getgenv()
-	local common = not remote and globals.__pulseFxTintOn and globals.__pulseFxColor and globals.__pulseFxColor() or nil
+	local common = not remote and globals.__staticFxTintOn and globals.__staticFxColor and globals.__staticFxColor() or nil
 	local options = context.configuration.vfxCol or {}
 	for _, root in AuraTint.roots(state, character) do
 		for _, object in root:GetDescendants() do
@@ -40603,15 +40567,15 @@ function AuraTint.install(context)
 	local state = {context = context, colors = setmetatable({}, {__mode = "k"}), emission = setmetatable({}, {__mode = "k"}), secondary = setmetatable({}, {__mode = "k"})}
 	local apply = function() AuraTint.apply(state) end
 	local applyFor = function(character, options) if character and type(options) == "table" then AuraTint.apply(state, character, options) end end
-	globals.__pulseVFXTint, globals.__pulseVFXTintFor = apply, applyFor
+	globals.__staticVFXTint, globals.__staticVFXTintFor = apply, applyFor
 	context.connect(context.player.CharacterAdded, function()
 		environment.task.wait(0.8)
 		pcall(apply)
 	end)
 	return state, function()
 		for object in state.colors do pcall(AuraTint.applyObject, state, object, nil, 1, false) end
-		if globals.__pulseVFXTint == apply then globals.__pulseVFXTint = nil end
-		if globals.__pulseVFXTintFor == applyFor then globals.__pulseVFXTintFor = nil end
+		if globals.__staticVFXTint == apply then globals.__staticVFXTint = nil end
+		if globals.__staticVFXTintFor == applyFor then globals.__staticVFXTintFor = nil end
 	end
 end
 
@@ -40799,7 +40763,7 @@ function AuraFeature.apply(state, character, selected)
 		if not ok then state.context.environment.warn("[Pulse] aura " .. item.key .. ": " .. tostring(raised)) end
 	end
 	if own then
-		local tint = state.context.environment.getgenv().__pulseVFXTint
+		local tint = state.context.environment.getgenv().__staticVFXTint
 		if tint then pcall(tint) end
 	end
 end
@@ -40819,7 +40783,7 @@ end
 
 function AuraFeature.mine(state)
 	local environment, globals = state.context.environment, state.context.environment.getgenv()
-	local common = globals.__pulseFxTintOn and globals.__pulseFxColor and globals.__pulseFxColor() or nil
+	local common = globals.__staticFxTintOn and globals.__staticFxColor and globals.__staticFxColor() or nil
 	local result, count = nil, 0
 	for _, item in AURA_CATALOG do
 		if not state.selected[item.key] then continue end
@@ -40934,7 +40898,7 @@ function AuraFeature.controls(state)
 		saved.r, saved.g, saved.b = math.floor(color.R * 255 + 0.5), math.floor(color.G * 255 + 0.5), math.floor(color.B * 255 + 0.5)
 		saved.custom, saved.glow = true, saved.glow or 100
 		if handles.custom then handles.custom.SetSilent(true) end
-		local tint = environment.getgenv().__pulseVFXTint
+		local tint = environment.getgenv().__staticVFXTint
 		if tint then pcall(tint) end
 	end})
 	handles.glow = section:Slider({Text = "Glow", NoSave = true, Min = 0, Max = 250, Default = 100, Decimals = 0, Suffix = "%", Callback = function(value) set("glow", value) end})
@@ -40944,7 +40908,7 @@ function AuraFeature.controls(state)
 		return result
 	end
 	handles.motion = section:Dropdown({Text = "Hat Animation", NoSave = true, Default = "None", Options = choices({"None", "Spin", "Float", "Spin + Float", "Sway", "Wobble", "Hover", "Bounce"}), Callback = function(value) set("motion", value) end})
-	handles.fx = section:Dropdown({Text = "Hat Effect", NoSave = true, Default = "None", Options = choices({"None", "Rainbow", "Wave", "Pulse"}), Callback = function(value) set("cfx", value) end})
+	handles.fx = section:Dropdown({Text = "Hat Effect", NoSave = true, Default = "None", Options = choices({"None", "Rainbow", "Wave", "Static"}), Callback = function(value) set("cfx", value) end})
 	handles.aspd = section:Slider({Text = "Hat Speed", NoSave = true, Min = 10, Max = 300, Default = 100, Decimals = 0, Suffix = "%", Callback = function(value) set("aspd", value / 100) end})
 	handles.hideHat = section:Toggle({Text = "Hide Hats", NoSave = true, Default = true, Callback = function(value) set("hideHat", not not value) end})
 	handles.hideHair = section:Toggle({Text = "Hide Hair", NoSave = true, Default = false, Callback = function(value) set("hideHair", not not value) end})
@@ -40981,7 +40945,7 @@ function AuraFeature.install(context)
 	local changed = function(player)
 		if not state.alive then return end
 		if player and player ~= context.player then
-			local notify = rawget(globals, "__pulseMirDirty")
+			local notify = rawget(globals, "__staticMirDirty")
 			if type(notify) == "function" then pcall(notify, player) end
 			return
 		end
@@ -40989,7 +40953,7 @@ function AuraFeature.install(context)
 		pending = true
 		environment.task.delay(0.1, function() pending = false; pcall(apply) end)
 	end
-	globals.__pulseVFXApply, globals.__pulseVFXClear, globals.__pulseVFXMine, globals.__pulseSkinChanged = apply, clear, mine, changed
+	globals.__staticVFXApply, globals.__staticVFXClear, globals.__staticVFXMine, globals.__staticSkinChanged = apply, clear, mine, changed
 	AuraFeature.controls(state)
 	if context.applyHooks then table.insert(context.applyHooks, function()
 		if not state.alive then return end
@@ -41008,10 +40972,10 @@ function AuraFeature.install(context)
 		state.alive = false
 		pcall(clear)
 		pcall(AuraHat.step, state)
-		if globals.__pulseVFXApply == apply then globals.__pulseVFXApply = nil end
-		if globals.__pulseVFXClear == clear then globals.__pulseVFXClear = nil end
-		if globals.__pulseVFXMine == mine then globals.__pulseVFXMine = nil end
-		if globals.__pulseSkinChanged == changed then globals.__pulseSkinChanged = nil end
+		if globals.__staticVFXApply == apply then globals.__staticVFXApply = nil end
+		if globals.__staticVFXClear == clear then globals.__staticVFXClear = nil end
+		if globals.__staticVFXMine == mine then globals.__staticVFXMine = nil end
+		if globals.__staticSkinChanged == changed then globals.__staticSkinChanged = nil end
 	end
 end
 
@@ -41027,7 +40991,7 @@ local SELF_CHAM_STYLES = {
 	Silhouette = {fill = 0, edge = true}, Tint = {fill = 0.5}, Outline = {edge = true},
 }
 local SELF_CHAM_ORDER = {"ForceField", "Hologram", "Flat", "Neon", "Glow", "Glass", "Crystal", "Chrome", "Metallic", "Ice", "Lava", "Ghost", "Wireframe", "Silhouette", "Tint", "Outline"}
-local SELF_CHAM_ANIMATIONS = {"None", "Pulse", "Breathe", "Fade", "Flash", "Rainbow", "Wave", "Gradient"}
+local SELF_CHAM_ANIMATIONS = {"None", "Static", "Breathe", "Fade", "Flash", "Rainbow", "Wave", "Gradient"}
 local SelfChams = {}
 
 function SelfChams.color(environment, value, fallback)
@@ -41099,7 +41063,7 @@ end
 function SelfChams.animated(state, settings, time, height)
 	local color, second, animation = settings.col, settings.col2, settings.anim
 	local phase = time * settings.speed / 100
-	if animation == "Pulse" then
+	if animation == "Static" then
 		local hue, saturation, value = color:ToHSV()
 		return state.context.environment.Color3.fromHSV(hue, saturation, value * (0.35 + 0.65 * (0.5 + 0.5 * math.sin(phase * 4)))), 0
 	end
@@ -41324,7 +41288,7 @@ function SelfChams.synchronize(state)
 		SelfChams.clearKind(state, kind)
 	end
 	pcall(SelfChams.refresh, state)
-	local tint = state.context.environment.getgenv().__pulseVFXTint
+	local tint = state.context.environment.getgenv().__staticVFXTint
 	if tint then pcall(tint) end
 end
 
@@ -41338,7 +41302,7 @@ function SelfChams.install(context)
 		return result
 	end
 	local function tint()
-		if globals.__pulseVFXTint then pcall(globals.__pulseVFXTint) end
+		if globals.__staticVFXTint then pcall(globals.__staticVFXTint) end
 	end
 	local function refresh() pcall(SelfChams.refresh, state) end
 	local function controls(kind)
@@ -41373,7 +41337,7 @@ function SelfChams.install(context)
 			state.settings[kind].on = not not value; refresh()
 		end, Settings = controls(kind)})
 	end
-	context.section:Toggle({Text = "Tint Auras / VFX", Default = false, Callback = function(value) globals.__pulseFxTintOn = not not value; tint() end})
+	context.section:Toggle({Text = "Tint Auras / VFX", Default = false, Callback = function(value) globals.__staticFxTintOn = not not value; tint() end})
 	if context.applyHooks then table.insert(context.applyHooks, function() SelfChams.synchronize(state) end) end
 	local mine = function()
 		local own, tool = state.settings.self, state.settings.tool
@@ -41388,7 +41352,7 @@ function SelfChams.install(context)
 		return spec and spec.material and environment.Enum.Material[spec.material] or nil
 	end
 	local color = function() return state.settings.self.col end
-	globals.__pulseChamsMine, globals.__pulseChamsMat, globals.__pulseSelfChams, globals.__pulseFxColor = mine, material, state, color
+	globals.__staticChamsMine, globals.__staticChamsMat, globals.__staticSelfChams, globals.__staticFxColor = mine, material, state, color
 	state.K, state.hls, state.apply = state.settings, state.highlights, refresh
 	context.connect(context.runService.RenderStepped, function()
 		local now = environment.os.clock()
@@ -41404,10 +41368,10 @@ function SelfChams.install(context)
 		state.settings.self.on, state.settings.tool.on = false, false
 		SelfChams.clearKind(state, "self"); SelfChams.clearKind(state, "tool")
 		if state.folder then pcall(function() state.folder:Destroy() end) end
-		if globals.__pulseChamsMine == mine then globals.__pulseChamsMine = nil end
-		if globals.__pulseChamsMat == material then globals.__pulseChamsMat = nil end
-		if globals.__pulseSelfChams == state then globals.__pulseSelfChams = nil end
-		if globals.__pulseFxColor == color then globals.__pulseFxColor = nil end
+		if globals.__staticChamsMine == mine then globals.__staticChamsMine = nil end
+		if globals.__staticChamsMat == material then globals.__staticChamsMat = nil end
+		if globals.__staticSelfChams == state then globals.__staticSelfChams = nil end
+		if globals.__staticFxColor == color then globals.__staticFxColor = nil end
 	end
 end
 
@@ -41721,7 +41685,7 @@ function Optimizer.skip(state, object)
 
 	local ancestor = object
 	while ancestor and ancestor ~= workspace and ancestor ~= lighting do
-		if ancestor.Name:sub(1, 5) == "Pulse" then return true end
+		if ancestor.Name:sub(1, 5) == "Static" then return true end
 		ancestor = ancestor.Parent
 	end
 
@@ -41827,7 +41791,7 @@ end
 function Optimizer.glare(state)
 	local environment, lighting = state.context.environment, state.context.lighting
 	local settings, global = state.settings, state.global
-	if environment.getgenv().__pulseVisOwns == true then return end
+	if environment.getgenv().__staticVisOwns == true then return end
 
 	pcall(function()
 		if not settings.antiGlare then
@@ -41870,7 +41834,7 @@ function Optimizer.applyGlobals(state)
 	pcall(function()
 		if not settings.noPost then Optimizer.restore(state, "post"); return end
 		for _, object in lighting:GetChildren() do
-			if object.Name:sub(1, 5) == "Pulse" then continue end
+			if object.Name:sub(1, 5) == "Static" then continue end
 			if object:IsA("PostEffect") and object.Enabled then
 				Optimizer.save(state, "post", object, true)
 				object.Enabled = false
@@ -42303,7 +42267,7 @@ function CustomCursor.gallery(state)
 		if index then name = context.translation.tr("Image") .. " #" .. index else name = context.translation.tr(name) end
 		title.Text, placeholder.ImageTransparency, off.Visible = name, shape == "Off" and 0 or 1, shape ~= "Off"
 		local details = {context.translation.tr("Size") .. " " .. tostring(math.floor((tonumber(settings.cursorSize) or 100) + 0.5)) .. "%"}
-		for _, item in ipairs({{"cursorSpin", "Spin"}, {"cursorPulse", "Pulse"}, {"cursorRainbow", "Rainbow"}, {"cursorClick", "Bounce"}}) do
+		for _, item in ipairs({{"cursorSpin", "Spin"}, {"cursorPulse", "Static"}, {"cursorRainbow", "Rainbow"}, {"cursorClick", "Bounce"}}) do
 			if settings[item[1]] then table.insert(details, context.translation.tr(item[2])) end
 		end
 		detail.Text = table.concat(details, " В· ")
@@ -42626,7 +42590,7 @@ function VisualWorld.targets(state, parent, class)
 	local result, seen = {}, {}
 	if not parent then return result end
 	for _, object in ipairs(parent:GetChildren()) do
-		if not state.owned[object] and object:IsA(class) and object.Name:sub(1, 5) ~= "Pulse" and object.Name:sub(1, 4) ~= "Nova" then
+		if not state.owned[object] and object:IsA(class) and object.Name:sub(1, 5) ~= "Static" and object.Name:sub(1, 4) ~= "Nova" then
 			table.insert(result, object)
 			seen[object] = true
 		end
@@ -42875,7 +42839,7 @@ end
 
 function VisualWorld.enabled(state, enabled)
 	state.values.on = enabled == true
-	state.context.environment.getgenv().__pulseVisOwns = state.values.on
+	state.context.environment.getgenv().__staticVisOwns = state.values.on
 	if not state.values.on then
 		state.epoch += 1
 		state.queued = false
@@ -43246,7 +43210,7 @@ function VisualSky.install(context)
 		activate = function(key, enabled) VisualSky.activate(state, key, enabled ~= false) end,
 		active = function() return state.active end,
 		clear = function() if state.active then VisualSky.activate(state, state.active, false) end end}
-	context.environment.getgenv().__pulseSkyAPI = api
+	context.environment.getgenv().__staticSkyAPI = api
 	context.visualWorld.context.skyActive = api.active
 	pcall(VisualSky.gallery, state)
 	table.insert(context.applyHooks, function()
@@ -43261,7 +43225,7 @@ function VisualSky.install(context)
 	return state, function()
 		VisualSky.clearObjects(state)
 		state.active = nil
-		if context.environment.getgenv().__pulseSkyAPI == api then context.environment.getgenv().__pulseSkyAPI = nil end
+		if context.environment.getgenv().__staticSkyAPI == api then context.environment.getgenv().__staticSkyAPI = nil end
 	end
 end
 
@@ -43403,7 +43367,7 @@ function TexturePack.asset(state, pack, key)
 	local path = "PulseHub/texpack/" .. string.lower(pack) .. "_" .. key .. "_v1." .. settings.ext
 	local ok, result = pcall(function()
 		if not env.isfile(path) then
-			local encoded = env.__pulseData.take("tex_" .. pack .. "_" .. key)
+			local encoded = env.__staticData.take("tex_" .. pack .. "_" .. key)
 			if not encoded then return nil end
 			env.writefile(path, buffer.tostring(OfflineFiles._decodeBuffer(encoded)))
 		end
@@ -43415,14 +43379,14 @@ end
 
 function TexturePack.eligible(state, part)
 	if not part:IsA("BasePart") or part:IsA("Terrain") or part.Transparency >= 0.95 or part.MaterialVariant ~= "" then return false end
-	if part.Name:sub(1, 5) == "Pulse" then return false end
+	if part.Name:sub(1, 5) == "Static" then return false end
 	if part:IsA("MeshPart") and part.TextureID ~= "" then return false end
 	local workspace = state.context.workspace
 	if workspace.CurrentCamera and part:IsDescendantOf(workspace.CurrentCamera) then return false end
 	local parent = part.Parent
 	while parent and parent ~= workspace do
 		if parent:IsA("Model") and parent:FindFirstChildOfClass("Humanoid") then return false end
-		if parent:IsA("Tool") or parent:IsA("Accessory") or parent.Name == "CoinContainer" or parent.Name:sub(1, 5) == "Pulse" then return false end
+		if parent:IsA("Tool") or parent:IsA("Accessory") or parent.Name == "CoinContainer" or parent.Name:sub(1, 5) == "Static" then return false end
 		parent = parent.Parent
 	end
 	return true
@@ -43611,11 +43575,11 @@ function TexturePack.install(context)
 		TexturePack.refreshColors(state)
 		TexturePack.rescale(state)
 	end)
-	context.environment.getgenv().__pulseTexPack = state
+	context.environment.getgenv().__staticTexPack = state
 	if settings.pack ~= "Off" then context.environment.task.defer(function() if context.isAlive() then TexturePack.apply(state) end end) end
 	return state, function()
 		TexturePack.clear(state)
-		if context.environment.getgenv().__pulseTexPack == state then context.environment.getgenv().__pulseTexPack = nil end
+		if context.environment.getgenv().__staticTexPack == state then context.environment.getgenv().__staticTexPack = nil end
 	end
 end
 
@@ -44092,7 +44056,7 @@ function Weather.changed(state)
 end
 
 function Weather.setSky(state, key)
-	local api = state.context.environment.getgenv().__pulseSkyAPI
+	local api = state.context.environment.getgenv().__staticSkyAPI
 	if not api then return end
 	if key and key ~= "" then api.activate(key, true) else api.clear() end
 	if state.paintSkies then state.paintSkies() end
@@ -44115,7 +44079,7 @@ function Weather.restoreLook(state)
 end
 
 function Weather.pickSky(state, key)
-	local api = state.context.environment.getgenv().__pulseSkyAPI
+	local api = state.context.environment.getgenv().__staticSkyAPI
 	if api and api.active() == key then
 		Weather.setSky(state, nil)
 		if state.values.matchLight then Weather.restoreLook(state) end
@@ -44141,7 +44105,7 @@ function Weather.scene(state, name)
 	Weather.changed(state)
 	Weather.setSky(state, scene.sky)
 	if scene.look then Weather.takeLook(state, scene.look) end
-	local skyFx = state.context.environment.getgenv().__pulseSkyFx
+	local skyFx = state.context.environment.getgenv().__staticSkyFx
 	if type(skyFx) == "table" then
 		if scene.fx then pcall(skyFx.scene, scene.fx) else pcall(skyFx.sceneEnd) end
 	end
@@ -44149,7 +44113,7 @@ function Weather.scene(state, name)
 end
 
 function Weather.clearScene(state)
-	local skyFx = state.context.environment.getgenv().__pulseSkyFx
+	local skyFx = state.context.environment.getgenv().__staticSkyFx
 	if type(skyFx) == "table" then pcall(skyFx.sceneEnd) end
 	state.values.scene, state.values.on = "", false
 	Weather.changed(state)
@@ -44285,7 +44249,7 @@ function Weather.skyGallery(state)
 		context.connect(button.MouseLeave, function() tile.hover = false; state.paintSkies() end)
 	end
 	state.paintSkies = function()
-		local api = env.getgenv().__pulseSkyAPI
+		local api = env.getgenv().__staticSkyAPI
 		local active = api and api.active() or ""
 		for _, tile in ipairs(tiles) do
 			local selected = tile.key == active
@@ -44374,7 +44338,7 @@ function Weather.install(context)
 			if state.paintScenes then state.paintScenes() end
 		end})
 		state.paintSkies = function()
-			local api = env.getgenv().__pulseSkyAPI
+			local api = env.getgenv().__staticSkyAPI
 			if skyControl.SetSilent then skyControl.SetSilent(api and api.active() or "") end
 		end
 	end
@@ -44390,14 +44354,14 @@ function Weather.install(context)
 		{"Mist color", "mistColour"}, {"Ember color", "emberColour"}, {"Ash color", "ashColour"},
 		{"Firefly color", "fireflyColour"}, {"Pollen color", "pollenColour"}}) do color(entry[1], entry[2]) end
 	state.batch = false
-	local api = env.getgenv().__pulseSkyAPI
+	local api = env.getgenv().__staticSkyAPI
 	if api then for _, sky in ipairs(state.skies) do api.register(sky.key, sky.spec) end end
 	local savedSky = context.configuration.visuals and context.configuration.visuals.sky
 	if api and savedSky and savedSky ~= "" then env.task.defer(function()
 		if context.isAlive() then api.activate(savedSky, true); state.paintSkies() end
 	end) end
 	context.visualWorld.context.applyWeatherExtra = function(name) Weather.applyExtra(state, name) end
-	env.getgenv().__pulseWeather = state
+	env.getgenv().__staticWeather = state
 	if context.runService.RenderStepped then context.connect(context.runService.RenderStepped, function(delta)
 		if state.failureAt and os.clock() < state.failureAt then return end
 		local ok, message = pcall(Weather.step, state, delta)
@@ -44409,7 +44373,7 @@ function Weather.install(context)
 	end) end
 	return state, function()
 		Weather.stop(state)
-		if env.getgenv().__pulseWeather == state then env.getgenv().__pulseWeather = nil end
+		if env.getgenv().__staticWeather == state then env.getgenv().__staticWeather = nil end
 	end
 end
 
@@ -45171,7 +45135,7 @@ function SkyFx.install(context)
 	end)
 	local api = {cfg = state.cfg, scene = function(names) SkyFx.scene(state, names) end, sceneEnd = function() SkyFx.sceneEnd(state) end,
 		set = function(group, key, value) SkyFx.set(state, group, key, value) end}
-	env.getgenv().__pulseSkyFx = api
+	env.getgenv().__staticSkyFx = api
 	if state.paint then state.paint() end
 	if context.runService.RenderStepped then context.connect(context.runService.RenderStepped, function(delta)
 		local ok, message = pcall(SkyFx.step, state, delta)
@@ -45179,7 +45143,7 @@ function SkyFx.install(context)
 	end) end
 	return state, function()
 		SkyFx.clear(state)
-		if env.getgenv().__pulseSkyFx == api then env.getgenv().__pulseSkyFx = nil end
+		if env.getgenv().__staticSkyFx == api then env.getgenv().__staticSkyFx = nil end
 	end
 end
 
@@ -45442,7 +45406,7 @@ end
 
 function AvatarSkins.notify(state)
 	local globals = state.context.environment.getgenv()
-	local callback = rawget(globals, "__pulseSkinChanged")
+	local callback = rawget(globals, "__staticSkinChanged")
 	if type(callback) == "function" then state.context.environment.task.defer(function() pcall(callback, state.player) end) end
 end
 
@@ -45579,7 +45543,7 @@ function AvatarSkins.firstPerson(state, character)
 	local camera = state.context.workspace.CurrentCamera
 	local head = character:FindFirstChild("Head")
 	local globals = state.context.environment.getgenv()
-	local invis = rawget(globals, "__pulseInvis")
+	local invis = rawget(globals, "__staticInvis")
 	local near = camera and head and (camera.CFrame.Position - head.Position).Magnitude < 1.4
 	local transparency = near and 1 or type(invis) == "table" and invis.active == true and 0.5 or 0
 	if transparency == state.near then return end
@@ -45870,7 +45834,7 @@ function AvatarSkins.headless(model, enabled)
 end
 
 function AvatarSkins.cosmetics(state)
-	local callback = rawget(state.context.environment.getgenv(), "__pulseCosMine")
+	local callback = rawget(state.context.environment.getgenv(), "__staticCosMine")
 	if type(callback) ~= "function" then return false, false end
 	local ok, leg, head = pcall(callback)
 	return ok and leg == true, ok and head == true
@@ -45949,7 +45913,7 @@ function AvatarSkins.install(context, config, save)
 	local mountOriginal = function(object)
 		local original = AvatarSkins.mountOriginal(state, object)
 		if original then return original end
-		local remote = rawget(globals, "__pulseRemoteSkin")
+		local remote = rawget(globals, "__staticRemoteSkin")
 		for _, entry in remote and remote.list or {} do
 			original = AvatarSkins.mountOriginal(entry, object)
 			if original then return original end
@@ -45963,14 +45927,14 @@ function AvatarSkins.install(context, config, save)
 			AvatarSkins.headless(state.model, head)
 		end)
 	end
-	globals.__pulseSkinModel, globals.__pulseSkinMine, globals.__pulseMountOrig, globals.__pulseSkinCos = model, mine, mountOriginal, cosmetics
+	globals.__staticSkinModel, globals.__staticSkinMine, globals.__staticMountOrig, globals.__staticSkinCos = model, mine, mountOriginal, cosmetics
 	return state, function()
 		state.alive = false
 		AvatarSkins.stop(state)
-		if globals.__pulseSkinModel == model then globals.__pulseSkinModel = nil end
-		if globals.__pulseSkinMine == mine then globals.__pulseSkinMine = nil end
-		if globals.__pulseMountOrig == mountOriginal then globals.__pulseMountOrig = nil end
-		if globals.__pulseSkinCos == cosmetics then globals.__pulseSkinCos = nil end
+		if globals.__staticSkinModel == model then globals.__staticSkinModel = nil end
+		if globals.__staticSkinMine == mine then globals.__staticSkinMine = nil end
+		if globals.__staticMountOrig == mountOriginal then globals.__staticMountOrig = nil end
+		if globals.__staticSkinCos == cosmetics then globals.__staticSkinCos = nil end
 	end
 end
 
@@ -46111,13 +46075,13 @@ function RemoteAvatarSkins.install(context)
 		return entry.model
 	end
 	local globals = context.environment.getgenv()
-	globals.__pulseRemoteSkin = state
+	globals.__staticRemoteSkin = state
 	local removing
 	if context.players.PlayerRemoving then removing = context.connect(context.players.PlayerRemoving, state.clear) end
 	return state, function()
 		if removing then pcall(function() removing:Disconnect() end) end
 		state.clearAll()
-		if globals.__pulseRemoteSkin == state then globals.__pulseRemoteSkin = nil end
+		if globals.__staticRemoteSkin == state then globals.__staticRemoteSkin = nil end
 	end
 end
 
@@ -47031,7 +46995,7 @@ end
 
 function AnimationFeature.install(context)
 	local environment, globals = context.environment, context.environment.getgenv()
-	if globals.__pulseFA_cleanup then pcall(globals.__pulseFA_cleanup) end
+	if globals.__staticFA_cleanup then pcall(globals.__staticFA_cleanup) end
 	local state = {context = context, alive = true, token = 0, generation = 0, connections = {}, tracks = {}, emoteConnections = {}, details = {},
 		config = AnimationFeature.defaults(AnimationFeature.load(context, "BundleAnimations/config.json")),
 		cache = AnimationFeature.load(context, "BundleAnimations/anims_cache.json"), baseSpeed = 1}
@@ -47099,9 +47063,9 @@ function AnimationFeature.install(context)
 		stopSkin()
 		AnimationFeature.stopEmote(state)
 		AnimationFeature.stop(state)
-		if globals.__pulseFA == state then globals.__pulseFA = nil end
+		if globals.__staticFA == state then globals.__staticFA = nil end
 	end
-	globals.__pulseFA, globals.__pulseFA_cleanup = state, stop
+	globals.__staticFA, globals.__staticFA_cleanup = state, stop
 	return state, stop
 end
 
@@ -47119,11 +47083,11 @@ function PulseApplication.Mobile.action(state, key)
 	local toggles = {killall = "KillAll", invis = "Invis", noclip = "Noclip", speed = "Speed", sglitch = "SGlitch"}
 	local name = toggles[key]
 	if name then
-		local get, set = globals["__pulseGet" .. name], globals["__pulseSet" .. name]
+		local get, set = globals["__staticGet" .. name], globals["__staticSet" .. name]
 		if type(set) == "function" then pcall(set, not (type(get) == "function" and get())) end
 		return
 	end
-	local actions = {shot = "__pulseShotMurder", knife = "__pulseThrowKnife", bombjump = "__pulseAutoBombJump", equip = "__pulsePickUpGun"}
+	local actions = {shot = "__staticShotMurder", knife = "__staticThrowKnife", bombjump = "__staticAutoBombJump"}
 	if actions[key] then
 		local action = globals[actions[key]]
 		if type(action) == "function" then pcall(action) end
@@ -47132,7 +47096,7 @@ function PulseApplication.Mobile.action(state, key)
 	if key ~= "flingM" and key ~= "flingS" then return end
 	if state.flinging then
 		state.cancelFling = true
-		if type(globals.__pulseFlingCancel) == "function" then pcall(globals.__pulseFlingCancel) end
+		if type(globals.__staticFlingCancel) == "function" then pcall(globals.__staticFlingCancel) end
 		return
 	end
 	state.flinging, state.cancelFling = key, false
@@ -47152,16 +47116,16 @@ function PulseApplication.Mobile.action(state, key)
 				if key == "flingS" and role ~= "Sheriff" and role ~= "Hero" then continue end
 				local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 				if not humanoid or humanoid.Health <= 0 then continue end
-				if type(globals.__pulseFlingPersist) == "function" then
-					globals.__pulseFlingPersist(player, {time = 10})
+				if type(globals.__staticFlingPersist) == "function" then
+					globals.__staticFlingPersist(player, {time = 10})
 					continue
 				end
-				if type(globals.__pulseFlingPlayer) == "function" then
-					pcall(globals.__pulseFlingPlayer, player)
-					while globals.__pulseManualFling and not state.cancelFling do context.environment.task.wait(0.1) end
+				if type(globals.__staticFlingPlayer) == "function" then
+					pcall(globals.__staticFlingPlayer, player)
+					while globals.__staticManualFling and not state.cancelFling do context.environment.task.wait(0.1) end
 					continue
 				end
-				if type(globals.__pulseFlingChar) == "function" then pcall(globals.__pulseFlingChar, character, 1); context.environment.task.wait(0.12) end
+				if type(globals.__staticFlingChar) == "function" then pcall(globals.__staticFlingChar, character, 1); context.environment.task.wait(0.12) end
 			end
 		end)
 		state.flinging = nil
@@ -47268,7 +47232,7 @@ function PulseApplication.Mobile.paint(state)
 	local globals, settings = environment.getgenv(), context.configuration
 	local active = {fly = settings.fly.on == true, bhop = settings.bhop == true}
 	for key, name in {killall = "KillAll", invis = "Invis", noclip = "Noclip", speed = "Speed", sglitch = "SGlitch"} do
-		local get = globals["__pulseGet" .. name]
+		local get = globals["__staticGet" .. name]
 		if type(get) ~= "function" then continue end
 		local ok, value = pcall(get)
 		active[key] = ok and value == true
@@ -47296,7 +47260,7 @@ function PulseApplication.Mobile.hud(state)
 	local globals = environment.getgenv()
 	local function refresh()
 		pcall(function()
-			local window = globals.__pulseMM2Nova
+			local window = globals.__staticMM2Nova
 			if not window then return end
 			window:SetWatermark(settings.pingfps == true or settings.roundtimer == true)
 			if not settings.roundtimer then window:SetWatermarkTitle(nil) end
@@ -47305,13 +47269,13 @@ function PulseApplication.Mobile.hud(state)
 	local function setPing(value)
 		settings.pingfps = value == true
 		refresh()
-		local control = globals.__pulsePfSettings
+		local control = globals.__staticPfSettings
 		if control and control.Get and control.SetSilent and control.Get() ~= settings.pingfps then pcall(control.SetSilent, settings.pingfps) end
 	end
 
 	section:Header("HUD")
 	local control = section:Toggle({Text = "Show Ping/Fps UI", Default = false, Callback = setPing})
-	globals.__pulsePingFps = {get = function() return settings.pingfps == true end, set = function(value)
+	globals.__staticPingFps = {get = function() return settings.pingfps == true end, set = function(value)
 		if control and control.Set then control.Set(value); return end
 		setPing(value)
 	end}
@@ -47333,7 +47297,7 @@ function PulseApplication.Mobile.hud(state)
 			local time = part and part:GetAttribute("Time")
 			if type(time) == "number" and time > 0 then title = string.format("%d:%02d", math.floor(time / 60), math.floor(time % 60)) end
 		end)
-		local window = globals.__pulseMM2Nova
+		local window = globals.__staticMM2Nova
 		if window and window.SetWatermarkTitle then pcall(window.SetWatermarkTitle, window, title) end
 	end)
 end
@@ -47345,7 +47309,7 @@ function PulseApplication.Mobile.install(context)
 	settings.uis = type(settings.uis) == "table" and settings.uis or {}
 	settings.uis.size = type(settings.uis.size) == "table" and settings.uis.size or {}
 	settings.uis.lock = type(settings.uis.lock) == "table" and settings.uis.lock or {}
-	if settings.uis.style ~= "Pulse" and settings.uis.style ~= "Glass" and settings.uis.style ~= "Compact" then settings.uis.style = "Pulse" end
+	if settings.uis.style ~= "Static" and settings.uis.style ~= "Glass" and settings.uis.style ~= "Compact" then settings.uis.style = "Static" end
 	local state = {context = context, buttons = {}, painted = {}}
 	local environment, section = context.environment, context.section
 	state.gui = context.create("ScreenGui", {Name = "PulseMobileBtns", ResetOnSpawn = false, IgnoreGuiInset = true,
@@ -47355,7 +47319,7 @@ function PulseApplication.Mobile.install(context)
 	section:Header("Buttons Style")
 	for _, item in PulseApplication.Mobile.buttons do state.buttons[item.key] = PulseApplication.Mobile.button(state, item) end
 	section:Dropdown({Text = "Button Design", Default = settings.uis.style,
-		Options = {{code = "Pulse", label = "Pulse"}, {code = "Glass", label = "Glass"}, {code = "Compact", label = "Compact"}}, Callback = function(value)
+		Options = {{code = "Static", label = "Static"}, {code = "Glass", label = "Glass"}, {code = "Compact", label = "Compact"}}, Callback = function(value)
 		settings.uis.style = value
 		PulseApplication.Mobile.refresh(state)
 	end})
@@ -47377,9 +47341,9 @@ function PulseApplication.Mobile.install(context)
 	section:Button({Text = "Unlock All Buttons", Callback = function() table.clear(settings.uis.lock); PulseApplication.Mobile.refresh(state) end})
 	PulseApplication.Mobile.hud(state)
 	local globals = environment.getgenv()
-	globals.__pulseSyncUIS = function() PulseApplication.Mobile.refresh(state) end
-	globals.__pulseRefreshBtnStyles = globals.__pulseSyncUIS
-	table.insert(context.applyHooks, globals.__pulseSyncUIS)
+	globals.__staticSyncUIS = function() PulseApplication.Mobile.refresh(state) end
+	globals.__staticRefreshBtnStyles = globals.__staticSyncUIS
+	table.insert(context.applyHooks, globals.__staticSyncUIS)
 	PulseApplication.Mobile.refresh(state)
 	environment.task.spawn(function()
 		while context.isAlive() do
@@ -47389,7 +47353,7 @@ function PulseApplication.Mobile.install(context)
 	end)
 	return state, function()
 		state.cancelFling = true
-		globals.__pulseSyncUIS, globals.__pulseRefreshBtnStyles, globals.__pulsePingFps = nil, nil, nil
+		globals.__staticSyncUIS, globals.__staticRefreshBtnStyles, globals.__staticPingFps = nil, nil, nil
 		state.gui:Destroy()
 	end
 end
@@ -47717,7 +47681,7 @@ end
 PulseApplication.Trolly.dialog = {
 	start = {
 		gesture = "wave",
-		text = "Problem? Heh. I'm Trolly, the Pulse Hub guide. Need something?",
+		text = "Problem? Heh. I'm Trolly, the Static Hub guide. Need something?",
 		opts = {{"Our Discord", "discord"}, {"I have a problem", "help"}, {"What's new?", "news"}, {"Who are you?", "verity"}, {"Bye", false}},
 	},
 	discord = {
@@ -47754,7 +47718,7 @@ PulseApplication.Trolly.dialog = {
 	},
 	news = {
 		gesture = "cheer",
-		text = "Pulse Hub was rebuilt almost from scratch: new menu, new aim, new ESP and a pile of new features. Pick a topic!",
+		text = "Static Hub was rebuilt almost from scratch: new menu, new aim, new ESP and a pile of new features. Pick a topic!",
 		opts = {{"Aim & combat", "n_aim"}, {"ESP & visuals", "n_vis"}, {"Skins & effects", "n_skins"}, {"Menu & community", "n_social"}, {"Farm, mobile & more", "n_more"}, {"Back", "start"}},
 	},
 	n_aim = {
@@ -52066,7 +52030,7 @@ function PulseApplication.Trolly.select(state, target)
 			local globals = environment.getgenv()
 			local copy = environment.setclipboard or environment.toclipboard
 			if type(copy) == "function" then pcall(copy, "offline://discord.gg/pulsezone") end
-			if type(globals.__pulseDiscordInvite) == "function" then pcall(globals.__pulseDiscordInvite, "pulsezone") end
+			if type(globals.__staticDiscordInvite) == "function" then pcall(globals.__staticDiscordInvite, "pulsezone") end
 		end)
 		target = "joined"
 	end
@@ -52399,7 +52363,7 @@ function PulseApplication.Trolly.install(context)
 		setOn = function(enabled) PulseApplication.Trolly.setOn(state, enabled) end,
 		setVolume = function(value) PulseApplication.Trolly.setVolume(state, value) end,
 	}
-	context.environment.getgenv().__pulseNpc = api
+	context.environment.getgenv().__staticNpc = api
 	local keyCodes = {context.environment.Enum.KeyCode.One, context.environment.Enum.KeyCode.Two,
 		context.environment.Enum.KeyCode.Three, context.environment.Enum.KeyCode.Four,
 		context.environment.Enum.KeyCode.Five, context.environment.Enum.KeyCode.Six,
@@ -52445,7 +52409,7 @@ function PulseApplication.Trolly.install(context)
 		if state.hud then state.hud:Destroy() end
 		for _, voice in ipairs(state.voices) do voice:Destroy() end
 		if state.soundGroup then state.soundGroup:Destroy() end
-		if context.environment.getgenv().__pulseNpc == api then context.environment.getgenv().__pulseNpc = nil end
+		if context.environment.getgenv().__staticNpc == api then context.environment.getgenv().__staticNpc = nil end
 	end
 end
 
@@ -52576,7 +52540,7 @@ function PulseApplication.installMenu(context)
 	local globals = environment.getgenv()
 	local settings, window = context.configuration, context.window
 	local section, translation = context.section, context.translation
-	local key = globals.__pulseBindFromName(settings.ui.menuKey)
+	local key = globals.__staticBindFromName(settings.ui.menuKey)
 
 	section:Header("Menu", "Left")
 	if key and key.EnumType == environment.Enum.KeyCode then
@@ -52595,19 +52559,19 @@ function PulseApplication.installMenu(context)
 		context.hub.MenuKey = value
 		settings.ui.menuKey = value.Name
 	end})
-	local pingFps = globals.__pulsePingFps
-	globals.__pulsePfSettings = section:Toggle({Text = "Show FPS / Ping", NoSave = true, Default = pingFps and pingFps.get() or false, Callback = function(value)
-		local current = globals.__pulsePingFps
+	local pingFps = globals.__staticPingFps
+	globals.__staticPfSettings = section:Toggle({Text = "Show FPS / Ping", NoSave = true, Default = pingFps and pingFps.get() or false, Callback = function(value)
+		local current = globals.__staticPingFps
 		if current and current.get() ~= value then current.set(value) end
 	end})
-	globals.__pulseKbSettings = section:Toggle({Text = "Show Keybinds", NoSave = true,
+	globals.__staticKbSettings = section:Toggle({Text = "Show Keybinds", NoSave = true,
 		Default = window.State.get("keybindList", window.IsTouch == true) == true,
 		Callback = function(value) pcall(window.SetKeybindList, window, value) end})
 	section:Dropdown({Text = "Language", NoSave = true, Default = settings.ui.lang or "en",
 		Options = {{code = "en", label = "English"}, {code = "ru", label = "Р СѓСЃСЃРєРёР№"}}, Callback = function(language)
 			settings.ui.lang = language
 			translation.setLang(language)
-			for _, callback in ipairs(globals.__pulseNovaLangHooks or {}) do pcall(callback) end
+			for _, callback in ipairs(globals.__staticNovaLangHooks or {}) do pcall(callback) end
 		end})
 end
 
@@ -52634,7 +52598,7 @@ function PulseApplication.installGeneral(context)
 		Callback = function(enabled)
 			if type(settings.npc) ~= "table" then settings.npc = {} end
 			settings.npc.on = enabled
-			local npc = environment.getgenv().__pulseNpc
+			local npc = environment.getgenv().__staticNpc
 			if npc then npc.setOn(enabled) end
 		end})
 	context.section:Toggle({Text = "Trolly Dances", Default = type(context.defaults.npc) ~= "table" or context.defaults.npc.dances ~= false,
@@ -52647,7 +52611,7 @@ function PulseApplication.installGeneral(context)
 		Decimals = 0, Suffix = "%", Callback = function(value)
 			if type(settings.npc) ~= "table" then settings.npc = {} end
 			settings.npc.volume = value
-			local npc = environment.getgenv().__pulseNpc
+			local npc = environment.getgenv().__staticNpc
 			if npc then npc.setVolume(value) end
 		end})
 	if context.window then
@@ -52707,12 +52671,12 @@ function PulseApplication.create(environment, parent, versions)
 	local nova = NovaFoundation.create(environment)
 	local layout = Layout.create()
 	local window, tabs = PulseWindow.create(environment, nova, layout, parent)
-	environment.getgenv().__pulseMM2Nova = window
+	environment.getgenv().__staticMM2Nova = window
 	for _, group in ipairs(window.Groups) do translation.bind(group.Label, group.Key) end
 	for name, tab in pairs(tabs) do translation.bind(tab.Label, name) end
 	local globals = environment.getgenv()
-	globals.__pulseBinds = globals.__pulseBinds or {}
-	globals.__pulseBakedCfg = Configuration.baked(http)
+	globals.__staticBinds = globals.__staticBinds or {}
+	globals.__staticBakedCfg = Configuration.baked(http)
 	local hub = {W = window, Nova = nova, NovaTabs = tabs, tabs = {}, _tabList = {}, _ckeys = {}}
 	local connections = {}
 	local context = {translator = translation, layout = layout, icons = {}, config = settings.ctrl,
@@ -52960,13 +52924,13 @@ function PulseApplication.create(environment, parent, versions)
 	Configuration.install({environment = environment, http = http, section = general, settings = settings,
 		setters = context.setters, applyHooks = context.applyHooks, applyState = context.applyState,
 		window = window, translation = translation, weaponSkins = weaponSkins,
-		preset = globals.__pulseBakedCfg, inputService = inputService,
+		preset = globals.__staticBakedCfg, inputService = inputService,
 		visSnap = function() return VisualWorld.snapshot(visualWorld) end, visApply = function(data) VisualWorld.applySnapshot(visualWorld, data) end})
-	environment.getgenv().__pulseFovOK = function(character)
+	environment.getgenv().__staticFovOK = function(character)
 		return FovTarget.isInside({configuration = settings, workspace = workspace}, character)
 	end
-	globals.__pulseMM2SaveGen = (tonumber(globals.__pulseMM2SaveGen) or 0) + 1
-	local generation = globals.__pulseMM2SaveGen
+	globals.__staticMM2SaveGen = (tonumber(globals.__staticMM2SaveGen) or 0) + 1
+	local generation = globals.__staticMM2SaveGen
 	environment.task.spawn(function()
 		Configuration.saveWhileCurrent({environment = environment, generation = generation,
 			settings = settings, json = http})
@@ -53025,7 +52989,7 @@ function PulseApplication.create(environment, parent, versions)
 			pcall(function() connection:Disconnect() end)
 		end
 		if feature.state.screen then pcall(function() feature.state.screen:Destroy() end) end
-		if globals.__pulseMM2SaveGen == generation then globals.__pulseMM2SaveGen += 1 end
+		if globals.__staticMM2SaveGen == generation then globals.__staticMM2SaveGen += 1 end
 	end
 
 	return {window = window, hub = hub, settings = settings, translation = translation,
