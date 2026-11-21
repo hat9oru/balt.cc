@@ -132,7 +132,9 @@ function Layout.create()
 	local layout = {
 		tabs = {
 			{name = "Sheriff", icon = "shield", group = "Combat", desc = "Silent aim, aimbot and gun tools"},
-			{name = "Murderer", icon = "swords", group = "Combat", desc = "Kill aura, knife throws and targets"},
+			{name = "Murderer", icon = "swords", group = "Combat", desc = "Kill aura, knife throws and targets", subs = {
+				{key = "Kill", label = "Kill"}, {key = "Friends", label = "Friends"},
+			}},
 			{name = "Player", icon = "user-round", group = "Player", desc = "Movement, speed and protection"},
 			{name = "Visuals", icon = "eye", group = "Player", desc = "ESP, world lighting and effects", subs = {
 				{key = "ESP", label = "ESP"},
@@ -180,6 +182,7 @@ function Layout.create()
 			["Combat/AimBot FOV"] = {"Sheriff"},
 			["Combat/Anti-Aim"] = {"Player"},
 			["Combat/Custom Sounds"] = {"Music", "Sounds"},
+			["Combat/Friends"] = {"Murderer", "Friends"},
 			["Combat/Kill Player"] = {"Murderer"},
 			["Combat/Knife Throw"] = {"Murderer"},
 			["Combat/Murder"] = {"Murderer"},
@@ -204,12 +207,9 @@ function Layout.create()
 			["Settings/*"] = {"Settings", "@sub"},
 			["Teleport/*"] = {"Teleport"},
 			["Troll Fun/*"] = {"Troll"},
-			["Troll Fun/Audio Effects"] = {"Music"},
 			["Troll Fun/Game Sounds"] = {"Music", "Sounds"},
-			["Troll Fun/Library"] = {"Music"},
 			["Troll Fun/Movement"] = {"Player", nil, "Speed & Jump"},
 			["Troll Fun/Music:*"] = {"Music", "Boombox"},
-			["Troll Fun/SoundCloud"] = {"Music"},
 			["Troll Fun/Wall Hop"] = {"Player"},
 			["Visuals/*"] = {"Visuals", "Effects"},
 			["Visuals/Auras:*"] = {"Visuals", "Auras"},
@@ -263,6 +263,7 @@ function Layout.create()
 		["Favs"] = "star",
 		["Flames"] = "flame",
 		["Fling Players"] = "zap",
+		["Friends"] = "heart",
 		["Fun"] = "party-popper",
 		["Game Sounds"] = "speaker",
 		["General"] = "settings-2",
@@ -317,7 +318,6 @@ function Layout.create()
 		["Sky"] = "cloud-sun",
 		["Sky Effects"] = "sparkles",
 		["Sky Settings"] = "sliders-horizontal",
-		["SoundCloud"] = "cloud",
 		["Stats"] = "chart-bar",
 		["TP Player"] = "map-pin",
 		["TP Role"] = "user-round",
@@ -1501,6 +1501,8 @@ function Movement.install(context)
 	local environment = context.environment
 	local settings = context.configuration
 	local section = context.section
+	local runService = context.runService
+	local globals = environment.getgenv()
 
 	context.connect(context.inputService.JumpRequest, function()
 		if not settings.infJump then return end
@@ -1514,85 +1516,144 @@ function Movement.install(context)
 
 	section:ToggleKey({
 		Text = "Infinite Jumps", Default = context.defaults.infJump,
-		Bind = environment.getgenv().__staticBindFromName(settings.infJumpKey or ""),
+		Bind = globals.__staticBindFromName(settings.infJumpKey or ""),
 		Callback = function(enabled) settings.infJump = not not enabled end,
 		OnBind = function(key) settings.infJumpKey = key and key.Name or "" end,
 	})
 
-	local antiConnection = nil
-	local antiLastReal = nil
-	local function antiFlingSet(enabled)
-		enabled = not not enabled
-		settings.antiFling = enabled
-		if antiConnection then
-			pcall(function() antiConnection:Disconnect() end)
-			antiConnection = nil
-			antiLastReal = nil
-		end
-		if not enabled then return end
-		antiConnection = context.connect(context.runService.Stepped, function()
-			local character = context.player.Character
-			local root = character and character:FindFirstChild("HumanoidRootPart")
-			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-			if not root or not humanoid or humanoid.Health <= 0 then
-				antiLastReal = nil
-				return
-			end
-			local vel = root.AssemblyLinearVelocity
-			if vel and vel.Magnitude > 160 then
-				if antiLastReal then
-					pcall(function() root.CFrame = antiLastReal end)
-				end
-				pcall(function() root.AssemblyLinearVelocity = environment.Vector3.new(0, 0, 0) end)
-				pcall(function() root.AssemblyAngularVelocity = environment.Vector3.new(0, 0, 0) end)
-				pcall(function() humanoid:ChangeState(environment.Enum.HumanoidStateType.Physics) end)
-			else
-				antiLastReal = root.CFrame
-			end
+	-- Anti-Fling: a cheater's fling shows up as a huge velocity or spin burst on
+	-- the character. The watchdog remembers the last safe pose and, while the
+	-- attack keeps coming, kills all motion and snaps the character back to it,
+	-- so no exploit can drag you off the map.
+	local guard = {good = nil, goodAt = 0, last = nil, hitUntil = 0}
+	local function busy()
+		return globals.__staticFlyActive == true
+			or globals.__staticManualFling == true
+			or globals.__staticTouchFlinging == true
+			or globals.__staticFlingTargetChar ~= nil
+			or (tonumber(globals.__staticBombJumpUntil) or 0) > environment.os.clock()
+	end
+	local function pin(root)
+		pcall(function()
+			if guard.good then root.CFrame = guard.good end
+			root.AssemblyLinearVelocity = environment.Vector3.zero
+			root.AssemblyAngularVelocity = environment.Vector3.zero
 		end)
 	end
+	context.connect(runService.Heartbeat, function()
+		if not settings.antiFling then
+			guard.last, guard.good, guard.hitUntil = nil, nil, 0
+			globals.__staticAfRevert = nil
+			return
+		end
+		if busy() then
+			guard.last, guard.good, globals.__staticAfRevert = nil, nil, nil
+			return
+		end
+		local character = context.player.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if not humanoid or humanoid.Health <= 0 or not root or not root.Parent then
+			guard.last, guard.good, globals.__staticAfRevert = nil, nil, nil
+			return
+		end
 
+		local now = environment.os.clock()
+		local invis = globals.__staticInvis
+		local pose = invis and invis.active and invis.real or root.CFrame
+		local position = pose.Position
+		local moved = guard.last and (position - guard.last).Magnitude or 0
+		guard.last = position
+		local velocity = root.AssemblyLinearVelocity.Magnitude
+		local spin = root.AssemblyAngularVelocity.Magnitude
+		-- Flings hit with thousands of studs per second; even the fastest legit
+		-- movement in this script (speed glitch at 300) stays far below that.
+		if spin > 150 or velocity > 500 or moved > 90 and velocity > 80 then
+			guard.hitUntil = now + 1.1
+		end
+
+		if now < guard.hitUntil then
+			pin(root)
+			pcall(function()
+				humanoid.PlatformStand = false
+				local state = humanoid:GetState()
+				if state == environment.Enum.HumanoidStateType.FallingDown
+					or state == environment.Enum.HumanoidStateType.Ragdoll then
+					humanoid:ChangeState(environment.Enum.HumanoidStateType.GettingUp)
+				end
+			end)
+			globals.__staticAfRevert = function() pin(root) end
+			return
+		end
+
+		globals.__staticAfRevert = nil
+		guard.good, guard.goodAt = root.CFrame, now
+	end)
 	section:Toggle({
 		Text = "Anti-Fling", Default = context.defaults.antiFling,
-		Callback = function(enabled) antiFlingSet(enabled) end,
+		Tooltip = "Pins you back in place when a fling exploit tries to launch you off the map",
+		Callback = function(enabled) settings.antiFling = not not enabled end,
 	})
-	antiFlingSet(context.defaults.antiFling == true)
 
-	local godConnection = nil
-	local godHumanoidConn = nil
-	local function godApply(character)
-		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-		if not humanoid then return end
-		pcall(function() humanoid.MaxHealth = math.huge end)
-		pcall(function() humanoid.Health = humanoid.MaxHealth end)
-		if godHumanoidConn then pcall(function() godHumanoidConn:Disconnect() end); godHumanoidConn = nil end
-		godHumanoidConn = context.connect(humanoid.HealthChanged, function(health)
-			if not settings.godMode or not settings.godMode.on then return end
-			if health < (humanoid.MaxHealth or math.huge) then
-				pcall(function() humanoid.Health = humanoid.MaxHealth end)
-			end
-		end)
-	end
-	local function godSet(enabled)
-		enabled = not not enabled
-		if type(settings.godMode) ~= "table" then settings.godMode = {on = false} end
-		settings.godMode.on = enabled
-		if godConnection then pcall(function() godConnection:Disconnect() end); godConnection = nil end
-		if godHumanoidConn then pcall(function() godHumanoidConn:Disconnect() end); godHumanoidConn = nil end
-		if not enabled then return end
+	-- God Mode: tops the health back up every frame and hardens the humanoid
+	-- against death effects while you keep playing normally.
+	if type(settings.god) ~= "table" then settings.god = {on = false} end
+	local godCharacter, godHumanoid = nil, nil
+	local function resolveGod()
 		local character = context.player.Character
-		if character then godApply(character) end
-		godConnection = context.connect(context.player.CharacterAdded, function(char)
-			environment.task.wait(0.4)
-			godApply(char)
+		if character ~= godCharacter then
+			godCharacter, godHumanoid = character, character and character:FindFirstChildOfClass("Humanoid")
+		end
+		return godHumanoid
+	end
+	local function protect()
+		local humanoid = resolveGod()
+		if not humanoid or not humanoid.Parent or humanoid.Health <= 0 then return end
+		pcall(function()
+			humanoid.RequiresNeck = false
+			humanoid.BreakJointsOnDeath = false
+			humanoid.Health = humanoid.MaxHealth
 		end)
 	end
-	section:Toggle({
-		Text = "God Mode", Default = false,
-		Tooltip = "Полная бессмертность от ножа мардера и выстрелов шерифа. Все видят вас, но вы не умираете.",
-		Callback = function(enabled) godSet(enabled) end,
+	context.connect(runService.Heartbeat, function()
+		if settings.god.on then protect() end
+	end)
+	context.connect(context.player.CharacterAdded, function()
+		if settings.god.on then
+			environment.task.wait(0.3)
+			protect()
+		end
+	end)
+	local godToggle
+	godToggle = section:Toggle({
+		Text = "God Mode", Default = settings.god.on,
+		Tooltip = "You stay visible and keep playing, but your health is always full and death effects are blocked",
+		Callback = function(enabled)
+			settings.god.on = not not enabled
+			if enabled then
+				protect()
+				return
+			end
+			local humanoid = resolveGod()
+			if humanoid and humanoid.Parent then
+				pcall(function()
+					humanoid.RequiresNeck = true
+					humanoid.BreakJointsOnDeath = true
+				end)
+			end
+		end,
 	})
-	godSet(settings.godMode and settings.godMode.on == true)
+	globals.__staticGetGod = function() return not not settings.god.on end
+	globals.__staticSetGod = function(enabled)
+		enabled = not not enabled
+		if enabled == not not settings.god.on then return end
+		settings.god.on = enabled
+		if godToggle and godToggle.Set then
+			pcall(godToggle.Set, enabled)
+		elseif enabled then
+			protect()
+		end
+	end
 end
 
 function Movement.installNoclip(context)
@@ -1985,7 +2046,6 @@ function Movement.installInvisibility(context)
 	local parts, heartbeat, lastReal, renderReal, ghostPosition = {}, nil, nil, nil, nil
 	local groundedOffset, nudging, nudgeUntil, nudgeConnection = false, false, 0, nil
 	local raycastParams, raycastCharacter
-	local saved = {}
 
 	local function nudge(duration)
 		nudgeUntil = math.max(nudgeUntil, environment.os.clock() + (duration or 0.5))
@@ -2012,23 +2072,16 @@ function Movement.installInvisibility(context)
 		end
 		humanoid, root, parts = character:FindFirstChildOfClass("Humanoid"), character:FindFirstChild("HumanoidRootPart"), {}
 		for _, part in ipairs(character:GetDescendants()) do
-			if part:IsA("BasePart") then
-				table.insert(parts, part)
-				if saved[part] == nil then saved[part] = part.Transparency end
+			if part:IsA("BasePart") and part.Transparency == 0 then
+				local near = part.Name == "Head" or part.Parent ~= nil and part.Parent:IsA("Accessory") or false
+				table.insert(parts, {part = part, near = near})
 			end
 		end
 	end
 	local function transparency(enabled)
 		pcall(function()
-			for _, part in ipairs(parts) do
-				if part and part.Parent then
-					if enabled then
-						if saved[part] == nil then saved[part] = part.Transparency end
-						part.Transparency = 1
-					else
-						part.Transparency = saved[part] or 0
-					end
-				end
+			for _, item in ipairs(parts) do
+				if item.part and item.part.Parent then item.part.LocalTransparencyModifier = enabled and 0.5 or 0 end
 			end
 		end)
 	end
@@ -2047,7 +2100,7 @@ function Movement.installInvisibility(context)
 	end
 	local function stop()
 		if not active then return end
-		active = false
+		active, pending = false, false
 		pcall(function() if globals.__staticInvis then globals.__staticInvis.active, globals.__staticInvis.real = false, nil end end)
 		if heartbeat then
 			pcall(function() heartbeat:Disconnect() end)
@@ -2055,13 +2108,97 @@ function Movement.installInvisibility(context)
 		end
 		unbind()
 		transparency(false)
+		if root and root.Parent then
+			local target = lastReal or root.CFrame
+			pcall(function() root.CFrame = target end)
+			pcall(function() root.AssemblyLinearVelocity = environment.Vector3.new(0, 0, 0) end)
+			pcall(function() root.AssemblyAngularVelocity = environment.Vector3.new(0, 0, 0) end)
+			nudge(0.5)
+		end
 	end
 	local function start()
 		if active then return end
 		refreshCharacter()
-		active = true
+		if not humanoid or not root then return end
+		active, pending = true, false
 		transparency(true)
-		globals.__staticInvis = {active = true, grounded = true}
+		heartbeat = context.connect(runService.Heartbeat, function()
+			if not active then return end
+			local valid = humanoid and root and root.Parent
+			if not valid or root.Parent ~= player.Character or humanoid.Health <= 0 then
+				if globals.__staticInvis then globals.__staticInvis.active, globals.__staticInvis.real = false, nil end
+				return
+			end
+			pcall(function()
+				local revert = rawget(globals, "__staticAfRevert")
+				if revert then pcall(revert) end
+				local moving = humanoid.MoveDirection.Magnitude > 0.01
+				if not raycastParams then
+					raycastParams = environment.RaycastParams.new()
+					raycastParams.FilterType = environment.Enum.RaycastFilterType.Exclude
+				end
+				local character = player.Character
+				if raycastCharacter ~= character then
+					raycastCharacter = character
+					raycastParams.FilterDescendantsInstances = {character}
+				end
+				local grounded = workspace:Raycast(root.Position, environment.Vector3.new(0, -5, 0), raycastParams) ~= nil
+				local info = globals.__staticInvis or {}
+				info.active, info.grounded = true, grounded
+				globals.__staticInvis = info
+				-- The ghost hides just under the floor instead of deep below the map:
+				-- the character stays where it is for pickups and distance checks,
+				-- while other players only ever see it buried inside the ground.
+				local real = root.CFrame
+				local floor = workspace:Raycast(real.Position, environment.Vector3.new(0, -60, 0), raycastParams)
+				local offset = floor and -(floor.Distance + 4.2) or -12
+				offset = environment.math.max(offset, -45)
+				if grounded and not moving then
+					groundedOffset = not groundedOffset
+					if groundedOffset then offset += 0.5 end
+				end
+				renderReal, lastReal = real, real
+				info.real, info.realAt = real, environment.os.clock()
+				if (tonumber(globals.__staticInvisPause) or 0) > environment.os.clock() then return end
+				root.CFrame = real * environment.CFrame.new(0, offset, 0)
+				ghostPosition, pending = root.Position, true
+			end)
+		end)
+		pcall(function()
+			context.bindRender("StaticInvisRestore", environment.Enum.RenderPriority.Camera.Value - 1, function()
+				if pending and root and root.Parent and renderReal then
+					if not ghostPosition or (root.Position - ghostPosition).Magnitude < 2 then
+						pcall(function() root.CFrame = renderReal end)
+					end
+					pending = false
+				end
+			end)
+		end)
+		nudge(0.5)
+		pcall(function()
+			context.bindRender("StaticInvisGhost", environment.Enum.RenderPriority.Camera.Value + 1, function()
+				if not active then return end
+				local first, cameraPosition = firstPerson()
+				pcall(function()
+					for _, item in ipairs(parts) do
+						local part = item.part
+						if part and part.Parent then
+							local alpha = 0.5
+							if first then
+								if item.near then
+									alpha = 1
+								else
+									local distance = cameraPosition and (part.Position - cameraPosition).Magnitude or 99
+									if distance < 1.2 then alpha = 1 end
+									if distance >= 1.2 and distance < 2.4 then alpha = math.max(0.5, 1 - (distance - 1.2) / 1.2) end
+								end
+							end
+							part.LocalTransparencyModifier = alpha
+						end
+					end
+				end)
+			end)
+		end)
 	end
 	context.connect(player.CharacterAdded, function()
 		local enabled = not not context.configuration.invis.on
@@ -3265,7 +3402,6 @@ function FovSection._createControls(context)
 	})
 end
 
-local AimShootButton = {}
 local SheriffSection = {}
 
 -- Silent aim (Classic) and Flick Shot both work through the namecall hook, so the
@@ -3515,11 +3651,13 @@ end
 
 function Configuration.defaults(versions)
 	return {
-		active = true, antiFling = false, autoFlingSheriff = false, godMode = false,
+		active = true, antiFling = false, autoFlingSheriff = false,
 		bhop = false, bhopKey = "", bhopPower = 5, bhopSound = true, bombJump = false,
 		infJump = false, infJumpKey = "",
 		afk = {on = true},
 		invis = {on = false, key = ""},
+		god = {on = false},
+		friends = {},
 		noclip = {on = false, key = ""},
 		noclipCam = {on = false, key = ""},
 		spin = {on = false, key = "", speed = 10},
@@ -3534,7 +3672,7 @@ function Configuration.defaults(versions)
 		versions = versions or {},
 		sheriff = {
 			autoKill = false, wallbang = false, predEx = 0, autoShoot = false, shotTiming = "Accurate",
-			aimVer = "V4", aimType = "Classic", gunEsp = false, silentAim = false, pblank = false, shootBtn = false, shootBtnPos = nil,
+			aimVer = "V4", aimType = "Classic", gunEsp = false, silentAim = false, pblank = false,
 			resolver = false, predict = 0.13, autoGun = false, flickMouse = true, flickSpeed = 6, flickReturn = 100,
 			fov = {on = false, size = 220, r = 120, g = 220, b = 255},
 		},
@@ -3672,6 +3810,9 @@ function Configuration.snapshot(context)
 	environment.pcall(function()
 		if environment.type(settings.invis) == "table" then
 			settings.invis.on = false
+		end
+		if environment.type(settings.god) == "table" then
+			settings.god.on = false
 		end
 	end)
 
@@ -4230,6 +4371,11 @@ function FovTarget.hasMurderer(context)
 
 		local role = roles[player.Name]
 		if not role or role.Role ~= "Murderer" or role.Dead == true or role.Killed == true then
+			continue
+		end
+
+		local isFriend = context.environment and rawget(context.environment.getgenv(), "__staticIsFriend") or nil
+		if type(isFriend) == "function" and isFriend(player) then
 			continue
 		end
 
@@ -17054,7 +17200,6 @@ function Translation.create()
 			["%dh"] = "%dч",
 			["%dm"] = "%dм",
 			["8D Audio"] = "8D звук",
-			["A SoundCloud track link, or a DIRECT link to an mp3/ogg file. A download page will not work."] = "Ссылка на трек SoundCloud или ПРЯМАЯ ссылка на mp3/ogg. Страница скачивания не подойдёт.",
 			["A feature doesn't work"] = "Функция не работает",
 			["AA Mode"] = "Режим",
 			["About"] = "О хабе",
@@ -17136,6 +17281,7 @@ function Translation.create()
 			["Auto Kill"] = "Авто убийство",
 			["Auto Open"] = "Авто-открытие",
 			["Auto Pickup Gun"] = "Авто подбор пистолета",
+			["Auto Gun Button"] = "Кнопка авто подбор пистолета",
 			["Auto Plant"] = "Автопосадка",
 			["Auto Play on Round Start"] = "Авто-музыка в начале раунда",
 			["Auto Rejoin on Kick"] = "Авто-перезаход при кике",
@@ -17203,7 +17349,6 @@ function Translation.create()
 			["Boxes"] = "Кейсы",
 			["Break Dance"] = "Брейк",
 			["Brightness"] = "Яркость",
-			["Browse and share configs"] = "Конфиги от игроков",
 			["Bubbles"] = "Пузыри",
 			["Bullet Tracers"] = "Трейсеры пуль",
 			["Bundles"] = "Бандлы",
@@ -17223,7 +17368,6 @@ function Translation.create()
 			["Chams G"] = "Чамсы G",
 			["Chams R"] = "Чамсы R",
 			["Chams"] = "Чамсы",
-			["Chat"] = "Чат",
 			["Check Link"] = "Проверить ссылку",
 			["Check failed (network)."] = "Проверка не прошла (сеть).",
 			["Checking the file..."] = "Проверяю файл...",
@@ -17262,7 +17406,6 @@ function Translation.create()
 			["Compact sidebar"] = "Узкая панель",
 			["Competitive"] = "Соревновательный",
 			["Concert"] = "Концерт",
-			["Config Hub"] = "Хаб конфигов",
 			["Config applied"] = "Конфиг применён",
 			["Config created"] = "Конфиг создан",
 			["Config deleted"] = "Конфиг удалён",
@@ -17443,6 +17586,10 @@ function Translation.create()
 			["Fling Murderer Button"] = "Кнопка флинга мардера",
 			["Fling Panel"] = "Панель флинга",
 			["Fling Players"] = "Флинг игроков",
+			["Friend"] = "Друг",
+			["Friends"] = "Друзья",
+			["Not a friend"] = "Не друг",
+			["Tap a player to toggle friend protection: aimbot and auto knife throw skip friends"] = "Нажми на игрока, чтобы включить/выключить защиту друга: аимбот и авто-бросок ножа не работают на друзей",
 			["Fling Sheriff Button"] = "Кнопка флинга шерифа",
 			["Fling Sheriff"] = "Флинг шерифа",
 			["Fling"] = "Флинг",
@@ -17489,6 +17636,10 @@ function Translation.create()
 			["Ghost"] = "Призрак",
 			["Glitch Acceleration"] = "Разгон в воздухе",
 			["Glitch Speed"] = "Скорость глитча",
+			["God Mode"] = "Бессмертие (GodMode)",
+			["GodMode Button"] = "Кнопка бессмертия",
+			["Pins you back in place when a fling exploit tries to launch you off the map"] = "Возвращает тебя на место, когда читер пытается выкинуть тебя с карты флингом",
+			["You stay visible and keep playing, but your health is always full and death effects are blocked"] = "Тебя видят, ты играешь как обычно, но здоровье всегда полное и эффекты смерти заблокированы",
 			["Glow (animated)"] = "Свечение (анимация)",
 			["Glow intensity"] = "Сила свечения",
 			["Glow radius"] = "Радиус свечения",
@@ -17584,7 +17735,6 @@ function Translation.create()
 			["Join Small Server"] = "Малый сервер",
 			["Join Smallest Server"] = "Зайти где меньше игроков",
 			["Join link copied, open it in your browser"] = "Ссылка для входа скопирована, открой её в браузере",
-			["Join servers with other Static users"] = "Заходи на серверы к другим Static юзерам",
 			["Join"] = "Зайти",
 			["Joining..."] = "Захожу...",
 			["Joining: %d/%d players"] = "Захожу: %d/%d игроков",
@@ -17610,6 +17760,7 @@ function Translation.create()
 			["Kill aura, knife throws and targets"] = "Килл аура, броски ножа и цели",
 			["KillAll: OFF"] = "Убить всех: ВЫКЛ",
 			["Killing"] = "Убивает",
+			["Kill"] = "Убийство",
 			["Kills"] = "Убийства",
 			["Knife Effects"] = "Эффекты ножа",
 			["Knife On Belt"] = "Нож на поясе",
@@ -17862,7 +18013,6 @@ function Translation.create()
 			["Static Hub is in beta"] = "Static Hub в бете",
 			["Static Hub is in beta:>"] = "Static Hub в бете:>",
 			["Static Hub was rebuilt almost from scratch: new menu, new aim, new ESP and a pile of new features. Pick a topic!"] = "Static Hub переделан почти с нуля: новое меню, новый аим, новый ESP и куча новых функций. Выбирай тему!",
-			["Static Users"] = "Static юзеры",
 			["Static"] = "Статик",
 			["Purple"] = "Фиолетовый",
 			["Push Volume Now"] = "Применить громкость",
@@ -17966,7 +18116,6 @@ function Translation.create()
 			["Screen Stretch"] = "Растяжение экрана",
 			["Screen"] = "Экран",
 			["Script won't load"] = "Скрипт не запускается",
-			["Search SoundCloud or paste a link"] = "Поиск SoundCloud или ссылка",
 			["Search auras"] = "Поиск аур",
 			["Search configs  ·  %d"] = "Поиск конфигов  ·  %d",
 			["Search configs or players"] = "Поиск конфигов и игроков",
@@ -18005,7 +18154,6 @@ function Translation.create()
 			["Sharp zone"] = "Зона резкости",
 			["Sheriff Win Farm"] = "Фарм побед за шерифа",
 			["Sheriff"] = "Шериф",
-			["Shoot Button"] = "Кнопка выстрела",
 			["Shoot Murderer on full bag"] = "Убить мардера при полном мешке",
 			["Shooting"] = "Стрельба",
 			["Shot Murder Button"] = "Кнопка выстрела в мардера",
@@ -18074,10 +18222,6 @@ function Translation.create()
 			["Sound ID or link"] = "ID или ссылка на звук",
 			["Sound Volume"] = "Громкость звуков",
 			["Sound volume"] = "Громкость звуков",
-			["SoundCloud is turned off"] = "SoundCloud временно выключен",
-			["SoundCloud key not found - their site layout changed."] = "Ключ SoundCloud не найден — у них поменялась вёрстка.",
-			["SoundCloud: getting the key..."] = "SoundCloud: получаю ключ...",
-			["SoundCloud: resolving the track..."] = "SoundCloud: ищу трек...",
 			["Sounds"] = "Звуки",
 			["Spectating"] = "Наблюдаю",
 			["Speed & Jump"] = "Скорость и прыжок",
@@ -18137,7 +18281,6 @@ function Translation.create()
 			["TP Role"] = "ТП к роли",
 			["Tags"] = "Теги",
 			["Tail Color"] = "Цвет хвоста",
-			["Talk with other Static users"] = "Общение с пользователями Static",
 			["Talk"] = "Поговорить",
 			["Tantrum"] = "Истерика",
 			["Tap a link to copy it"] = "Нажми на ссылку, чтобы скопировать",
@@ -20376,6 +20519,10 @@ function AimTarget.murderer(context, roles)
 	for _, player in context.players:GetPlayers() do
 		local role = roles[player.Name]
 		if player == context.player or not role or role.Role ~= "Murderer" or role.Dead == true or role.Killed == true then continue end
+		if globals then
+			local isFriend = rawget(globals, "__staticIsFriend")
+			if type(isFriend) == "function" and isFriend(player) then continue end
+		end
 		local character = player.Character
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 		if humanoid and humanoid.Health > 0 and character:FindFirstChild("HumanoidRootPart") then return player, character end
@@ -21991,6 +22138,8 @@ function SheriffRuntime.target(context)
 	for _, player in context.players:GetPlayers() do
 		local role, character = roles[player.Name], player.Character
 		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		local isFriend = rawget(globals, "__staticIsFriend")
+		if type(isFriend) == "function" and isFriend(player) then continue end
 		if role and role.Role == "Murderer" and role.Dead ~= true and role.Killed ~= true and humanoid and humanoid.Health > 0 then
 			return player, character
 		end
@@ -22231,301 +22380,6 @@ function SheriffRuntime.installHooks(context)
 		return false
 	end
 	if aim.on then aim.installHook() end
-end
-
-function AimShootButton.destroy(existing)
-	if type(existing) ~= "table" then return end
-	existing.alive, existing.pressed = false, false
-	for _, field in ipairs({"inputChanged", "inputChanged2", "inputEnded", "inputEnded2", "inputEnded3", "inputBegan", "render"}) do
-		local connection = existing[field]
-		if connection then pcall(function() connection:Disconnect() end) end
-	end
-	if existing.gui then pcall(function() existing.gui:Destroy() end) end
-	if existing.globals and existing.globals.__staticShootBtn == existing then
-		existing.globals.__staticShootBtn = nil
-	end
-end
-
-function AimShootButton.fire(context)
-	local globals = context.environment.getgenv()
-	local fast = globals.__staticShotFast
-
-	-- The button uses the instant path: the pistol is grabbed and the bullet is
-	-- sent on the very same frame instead of waiting for the normal shot queue.
-	if type(fast) == "function" then
-		local ok, sent = context.environment.pcall(fast)
-		if ok and sent then return true end
-	end
-
-	local shot = globals.__staticShotMurder
-
-	if type(shot) ~= "function" then return false end
-
-	context.environment.pcall(shot)
-	return true
-end
-
-function AimShootButton.paint(state, pressed)
-	if state.painted == pressed then return end
-	state.painted = pressed
-	state.label.TextColor3 = pressed and state.environment.Color3.fromRGB(140, 240, 190) or state.environment.Color3.new(1, 1, 1)
-	state.button.BackgroundTransparency = pressed and 0.05 or 0.24
-	state.stroke.Transparency = pressed and 0 or 0.25
-end
-
-function AimShootButton.build(context, settings)
-	local environment = context.environment
-	local globals = environment.getgenv()
-	local players = environment.game:GetService("Players")
-	local inputService = environment.game:GetService("UserInputService")
-	local guiService = environment.game:GetService("GuiService")
-	local player = players.LocalPlayer
-	local holder
-
-	pcall(function() holder = environment.game:GetService("CoreGui") end)
-
-	if not holder and player then
-		holder = player:FindFirstChildOfClass("PlayerGui")
-	end
-
-	if not holder then return false end
-
-	local state = {context = context, environment = environment, globals = globals,
-		task = environment.task, alive = true, painted = nil,
-		gui = nil, button = nil, stroke = nil, label = nil, render = nil,
-		inputBegan = nil, inputChanged = nil, inputChanged2 = nil,
-		inputEnded = nil, inputEnded2 = nil, inputEnded3 = nil}
-
-	local gui = environment.Instance.new("ScreenGui")
-	gui.Name, gui.ResetOnSpawn, gui.IgnoreGuiInset = "StaticShootButton", false, true
-	gui.DisplayOrder, gui.ZIndexBehavior = 50, environment.Enum.ZIndexBehavior.Sibling
-	gui.Parent = holder
-
-	local button = environment.Instance.new("TextButton")
-	button.Name, button.Text, button.AutoButtonColor = "Shoot", "", false
-	button.BackgroundColor3, button.BackgroundTransparency = environment.Color3.fromRGB(20, 23, 30), 0.24
-	button.BorderSizePixel, button.Size, button.ZIndex = 0, environment.UDim2.fromOffset(76, 76), 2
-	button.AnchorPoint, button.Active, button.Selectable = environment.Vector2.new(0.5, 0.5), true, false
-	button.Parent = gui
-
-	local corner = environment.Instance.new("UICorner")
-	corner.CornerRadius = environment.UDim.new(0, 16)
-	corner.Parent = button
-
-	local stroke = environment.Instance.new("UIStroke")
-	stroke.Thickness, stroke.Transparency = 1.5, 0.25
-	stroke.Color, stroke.ApplyStrokeMode = environment.Color3.fromRGB(120, 220, 255), environment.Enum.ApplyStrokeMode.Border
-	stroke.Parent = button
-
-	local label = environment.Instance.new("TextLabel")
-	label.Name, label.Text, label.BackgroundTransparency = "Caption", "Shoot", 1
-	label.Size, label.Font, label.TextSize = environment.UDim2.fromScale(1, 1), environment.Enum.Font.GothamBold, 15
-	label.TextColor3, label.TextXAlignment = environment.Color3.new(1, 1, 1), environment.Enum.TextXAlignment.Center
-	label.Parent = button
-
-	state.gui, state.button, state.stroke, state.label = gui, button, stroke, label
-
-	-- The button lives in pixel space. The drag only ever uses the delta between
-	-- two consecutive pointer samples, so the GUI inset, the top bar and the
-	-- difference between touch and mouse coordinates cancel out completely:
-	-- the square follows the finger exactly, on every device.
-	local SIZE = 76
-	local EDGE = 2
-
-	local function screenSize()
-		local camera = environment.workspace.CurrentCamera
-		if camera then
-			local viewport = camera.ViewportSize
-			if viewport and viewport.X > 0 and viewport.Y > 0 then return viewport end
-		end
-		return gui.AbsoluteSize
-	end
-
-	-- Keep the whole square visible: the centre may never leave the screen.
-	local function clampToScreen(position, size)
-		local half = SIZE * 0.5
-		local maxX = math.max(size.X - half - EDGE, half)
-		local maxY = math.max(size.Y - half - EDGE, half)
-		return environment.Vector2.new(
-			math.clamp(position.X, half + EDGE, maxX),
-			math.clamp(position.Y, half + EDGE, maxY))
-	end
-
-	-- Target and current position are kept separately so the button eases towards
-	-- the finger instead of snapping to it: smooth, but still perfectly responsive.
-	local targetPos, currentPos = nil, nil
-
-	local function applyPosition()
-		local size = screenSize()
-		local clamped = clampToScreen(targetPos, size)
-		local delta = clamped - currentPos
-
-		if delta.Magnitude < 0.5 then
-			currentPos = clamped
-		else
-			currentPos = currentPos + delta * 0.45
-		end
-
-		button.Position = environment.UDim2.fromOffset(currentPos.X - SIZE * 0.5, currentPos.Y - SIZE * 0.5)
-	end
-
-	local function placeButton(point)
-		targetPos = clampToScreen(point, screenSize())
-		if not currentPos then currentPos = targetPos end
-		applyPosition()
-	end
-
-	-- Restore the saved spot (stored as screen fractions) on the first layout.
-	local function restorePosition()
-		local size = screenSize()
-		local saved = settings.shootBtnPos
-		local point
-
-		if type(saved) == "table" and tonumber(saved.x) and tonumber(saved.y) then
-			point = environment.Vector2.new(saved.x * size.X, saved.y * size.Y)
-		else
-			point = environment.Vector2.new(size.X - SIZE * 0.5 - 24, size.Y * 0.68)
-		end
-
-		placeButton(point)
-	end
-
-	restorePosition()
-
-	local pressed, moved = false, false
-	local lastPointer = nil
-
-	local function savePosition()
-		local size = screenSize()
-		if not size.X or size.X <= 0 then return end
-		settings.shootBtnPos = {x = currentPos.X / size.X, y = currentPos.Y / size.Y}
-	end
-
-	-- One press is one shot: the pistol is taken and fired immediately, there is
-	-- no hold to repeat and no delay.
-	local function press(input)
-		pressed, moved = true, false
-		-- The first movement event only anchors the reference point: the offset
-		-- between the GUI layer and the pointer is unknown at this moment, so it
-		-- must not be treated as a movement.
-		lastPointer = nil
-		currentPos = environment.Vector2.new(button.Position.X.Offset + SIZE * 0.5, button.Position.Y.Offset + SIZE * 0.5)
-		targetPos = currentPos
-		AimShootButton.paint(state, true)
-		AimShootButton.fire(context)
-	end
-
-	local function release()
-		pressed = false
-		lastPointer = nil
-		AimShootButton.paint(state, false)
-
-		if moved then savePosition() end
-	end
-
-	-- Ease the square towards its target every frame: no snapping, no jitter.
-	-- The clamp runs every frame, so a window resize can never push the button
-	-- off screen either.
-	state.render = environment.runService.RenderStepped:Connect(function()
-		if not targetPos then
-			local size = screenSize()
-			local point = environment.Vector2.new(button.Position.X.Offset + SIZE * 0.5, button.Position.Y.Offset + SIZE * 0.5)
-			currentPos = clampToScreen(point, size)
-			targetPos = currentPos
-		end
-
-		applyPosition()
-	end)
-
-	state.inputBegan = button.InputBegan:Connect(function(input)
-		if input.UserInputType ~= environment.Enum.UserInputType.MouseButton1
-			and input.UserInputType ~= environment.Enum.UserInputType.Touch then return end
-		if not pressed then press(input) end
-	end)
-
-	state.inputChanged = inputService.InputChanged:Connect(function(input)
-		if not pressed then return end
-		if input.UserInputType ~= environment.Enum.UserInputType.MouseMovement then return end
-
-		local point = environment.Vector2.new(input.Position.X, input.Position.Y)
-
-		-- Anchor on the first sample, then only the movement between two samples
-		-- is used. Any constant offset between the GUI layer and the pointer
-		-- (top bar, inset) disappears, so the square can never jump away.
-		if not lastPointer then
-			lastPointer = point
-			return
-		end
-
-		local step = point - lastPointer
-		lastPointer = point
-
-		if not moved and step.Magnitude < 1.5 then return end
-
-		moved = true
-		targetPos = targetPos + step
-	end)
-
-	-- Touch is captured by the GUI, so the button's own InputChanged is the
-	-- reliable source for it. Its coordinates already live in the GUI layer,
-	-- which is exactly the space the button is positioned in. Only Touch is
-	-- handled here: MouseMovement is taken from UserInputService, and counting
-	-- both would move the square twice as fast.
-	state.inputChanged2 = button.InputChanged:Connect(function(input)
-		if not pressed then return end
-		if input.UserInputType ~= environment.Enum.UserInputType.Touch then return end
-
-		local point = environment.Vector2.new(input.Position.X, input.Position.Y)
-
-		if not lastPointer then
-			lastPointer = point
-			return
-		end
-
-		local step = point - lastPointer
-		lastPointer = point
-
-		if not moved and step.Magnitude < 1.5 then return end
-
-		moved = true
-		targetPos = targetPos + step
-	end)
-
-	state.inputEnded = inputService.InputEnded:Connect(function(input)
-		if not pressed then return end
-		if input.UserInputType ~= environment.Enum.UserInputType.MouseButton1
-			and input.UserInputType ~= environment.Enum.UserInputType.Touch
-			and input.UserInputType ~= environment.Enum.UserInputType.MouseButton2 then return end
-		release()
-	end)
-
-	-- A finger that leaves the window can miss the service level release, so
-	-- the button's own release is used as a second trigger for touch.
-	state.inputEnded3 = button.InputEnded:Connect(function(input)
-		if not pressed then return end
-		if input.UserInputType ~= environment.Enum.UserInputType.Touch then return end
-		release()
-	end)
-
-	-- Safety net: if a release event is ever missed (focus loss, UI capture),
-	-- unlock the button so the hold loop can never stay stuck on.
-	state.inputEnded2 = inputService.WindowFocusReleased:Connect(function()
-		if pressed then release() end
-	end)
-
-	globals.__staticShootBtn = state
-	return true
-end
-
-function AimShootButton.set(context, enabled)
-	local globals = context.environment.getgenv()
-	local existing = rawget(globals, "__staticShootBtn")
-
-	AimShootButton.destroy(existing)
-
-	if not enabled then return end
-
-	context.environment.pcall(AimShootButton.build, context, context.configuration.sheriff)
 end
 
 function SheriffRuntime.install(context)
@@ -24988,6 +24842,10 @@ function FlingFeature.down(context, state, target, duration, options)
 	local params = environment.RaycastParams.new()
 	params.FilterType, params.FilterDescendantsInstances = environment.Enum.RaycastFilterType.Exclude, {character, target}
 	pcall(function() params.RespectCanCollide = true end)
+	-- Lets a fresh touch/click cancel this fling instantly instead of queueing.
+	state.interrupt = function()
+		if not done then done, result = true, "interrupt" end
+	end
 	local stepped = run.Stepped:Connect(function()
 		if done then return end
 		pcall(function() root.AssemblyLinearVelocity, root.AssemblyAngularVelocity = vector.zero, vector.zero end)
@@ -25085,7 +24943,9 @@ function FlingFeature.down(context, state, target, duration, options)
 				root.AssemblyAngularVelocity = vector.new(spin, spin, spin)
 			end
 			if grounded and not movingNow then root.AssemblyLinearVelocity = vector.new(0, -downward, 0) end
-			if not grounded then root.AssemblyLinearVelocity = vector.zero end
+			-- Airborne targets get the same slam: the CFrame glue keeps us in
+			-- contact, so the impulse still transfers even over the void.
+			if not grounded then root.AssemblyLinearVelocity = vector.new(0, -downward, 0) end
 			lastSelf, predicted, predictedAt, filteredAt = root.Position, position, timeNow, timeNow
 			firstPosition = firstPosition or position
 		end)
@@ -25103,8 +24963,16 @@ function FlingFeature.down(context, state, target, duration, options)
 		return ok and hit
 	end
 	local ok, position = pcall(function() return root.Position end)
-	local restore = not teleported and not (ok and (position - home.Position).Magnitude > 35 and ground(position))
+	local restore = result ~= "interrupt" and not teleported
+		and not (ok and (position - home.Position).Magnitude > 35 and ground(position))
 		and (ground(home.Position) or not (ok and ground(position)))
+	if result == "interrupt" then
+		-- An interrupted fling snaps home right away: the next fling is waiting.
+		pcall(function()
+			root.CFrame = home
+			root.AssemblyLinearVelocity, root.AssemblyAngularVelocity = vector.zero, vector.zero
+		end)
+	end
 	local restoreAt, stable = now(), 0
 	while restore and now() - restoreAt < 1.5 do
 		if not root.Parent then break end
@@ -25143,7 +25011,7 @@ function FlingFeature.down(context, state, target, duration, options)
 		environment.os.date("%H:%M:%S"), tostring(target.Name), initialSpeed, lead, multiplier, tostring(userId and state.leadMem[userId]),
 		result, frames, now() - started, minimumY - startY, minimumVelocity, spoofCount))
 	while #globals.__staticFlingLog > 10 do table.remove(globals.__staticFlingLog, 1) end
-	globals.__staticManualFling, globals.__staticTouchFlinging, state.busy = false, false, false
+	globals.__staticManualFling, globals.__staticTouchFlinging, state.busy, state.interrupt = false, false, false, nil
 	return result == "down" or result == "falling" or result == "gone", result
 end
 
@@ -25218,7 +25086,7 @@ function FlingFeature.player(context, state, player)
 	end)
 end
 
-function FlingFeature.installTouch(context)
+function FlingFeature.installTouch(context, state)
 	local environment = context.environment
 	local enabled, busy, bound = false, false, nil
 	local function bind(character)
@@ -25227,19 +25095,19 @@ function FlingFeature.installTouch(context)
 		for _, part in character:GetChildren() do
 			if not part:IsA("BasePart") then continue end
 			context.connect(part.Touched, function(hit)
-				if not enabled or busy then return end
+				if not enabled then return end
 				local target = hit and hit:FindFirstAncestorWhichIsA("Model")
 				local player = target and context.players:GetPlayerFromCharacter(target)
 				local fling = rawget(environment.getgenv(), "__staticFlingDown")
 				if not player or player == context.player or type(fling) ~= "function" then return end
+				if busy then
+					-- Cancel the running fling so the very next touch acts instantly.
+					if state and state.interrupt then pcall(state.interrupt) end
+					return
+				end
 				busy = true
 				environment.task.spawn(function()
-					local globals = environment.getgenv()
-					local prevDownV = rawget(globals, "__staticFlingDownV")
-					globals.__staticFlingDownV = 500000
-					pcall(fling, target, 0.3, {cam = false})
-					environment.task.wait(0.6)
-					if prevDownV then globals.__staticFlingDownV = prevDownV else globals.__staticFlingDownV = nil end
+					pcall(fling, target, 0.35, {cam = false})
 					busy = false
 				end)
 			end)
@@ -25459,13 +25327,8 @@ function FlingFeature.installClick(context)
 		mark(character)
 		if state.humpEnabled then FlingFeature.hump(context, state, character); return end
 		environment.task.spawn(function()
-			local globals = environment.getgenv()
-			local prevDownV = rawget(globals, "__staticFlingDownV")
-			globals.__staticFlingDownV = 500000
 			local fling = rawget(globals, "__staticFlingChar")
-			if type(fling) == "function" then pcall(fling, character, 0.6) end
-			environment.task.wait(0.6)
-			if prevDownV then globals.__staticFlingDownV = prevDownV else globals.__staticFlingDownV = nil end
+			if type(fling) == "function" then pcall(fling, character, 0.55) end
 		end)
 	end)
 	context.connect(context.inputService.InputBegan, function(input, processed)
@@ -25511,14 +25374,19 @@ function FlingFeature.install(context)
 		if not target then return end
 		local fling = rawget(globals, "__staticFlingDown")
 		if type(fling) ~= "function" then return end
+		-- A new click interrupts whatever fling is still running, so the fresh
+		-- target gets ejected immediately instead of waiting in a queue.
 		local started = environment.os.clock()
-		while globals.__staticManualFling and environment.os.clock() - started < 3 do environment.task.wait(0.05) end
+		while globals.__staticManualFling and environment.os.clock() - started < 1.5 do
+			if state.interrupt then pcall(state.interrupt) end
+			environment.task.wait(0.02)
+		end
 		pcall(fling, target, duration or 0.8)
 	end
 	globals.__staticFlingPlayer = function(player) return FlingFeature.player(context, state, player) end
 	globals.__staticFlingPersist = function(player, options) return FlingFeature.persist(context, state, player, options) end
 	globals.__staticFlingCancel = function() state.token += 1 end
-	FlingFeature.installTouch(context)
+	FlingFeature.installTouch(context, state)
 	local stopClick = FlingFeature.installClick(context)
 	local section = context.section
 	section:Header("Fling Players")
@@ -28214,6 +28082,19 @@ local KNIFE_TARGET_PARTS = {"HumanoidRootPart", "UpperTorso", "Torso", "LowerTor
 function MurderFeature.install(context)
 	local state = {context = context, killAll = false, killGun = false, aura = false, radius = 20}
 	local globals = context.environment.getgenv()
+	local environment = context.environment
+	local settings = context.configuration
+	if type(settings) ~= "table" then settings = {} end
+	if type(settings.friends) ~= "table" then settings.friends = {} end
+	local friends = settings.friends
+	local tr = context.translation and context.translation.tr or function(text) return text end
+
+	-- Friends: marked players are skipped by the aimbot and the auto knife throw,
+	-- unmarking them brings both features back instantly.
+	globals.__staticFriends = friends
+	globals.__staticIsFriend = function(player)
+		return player ~= nil and friends[tostring(player.UserId)] == true or false
+	end
 	globals.__staticSetKillAll = function(enabled) state.killAll = not not enabled end
 	globals.__staticGetKillAll = function() return state.killAll end
 	globals.__staticKillPass = function() return MurderFeature.killPass(state) end
@@ -28234,113 +28115,25 @@ function MurderFeature.install(context)
 		if player then MurderFeature.killPlayer(state, player) end
 	end})
 
-	-- Friends / whitelist: отмеченные игроки исключаются из аим-бота и авто-броска
-	state.friends = state.friends or {}
-	local friends = state.friends
-	globals.__staticIsFriend = function(player)
-		if not player then return false end
-		return friends[player.UserId] == true or friends[player.Name] == true
-	end
-	globals.__staticSetFriend = function(player, value)
-		if not player then return end
-		if value then friends[player.UserId] = true else friends[player.UserId] = nil end
-	end
-
-	local friendsHandle = section:Group({Title = "Friends / Друзья", Side = "Left"})
-	local friendContent = friendsHandle and friendsHandle.elements
-	if friendContent then
-		local note = context.environment.Instance.new("TextLabel")
-		note.Size = environment.UDim2.new(1, -12, 0, 26)
-		note.BackgroundTransparency = 1
-		note.BorderSizePixel = 0
-		note.TextXAlignment = environment.Enum.TextXAlignment.Left
-		note.Text = "Отмеченные игроки не будут целью аим-бота, авто-броска ножом и кила."
-		note.TextSize = 12
-		note.TextColor3 = environment.Color3.fromRGB(180, 180, 180)
-		note.Font = environment.Enum.Font.Gotham
-		note.Parent = friendContent
-
-		local runService = context.environment.game:GetService("RunService")
-		local list = context.environment.Instance.new("ScrollingFrame")
-		list.Name = "StaticFriendsList"
-		list.Size = environment.UDim2.new(1, -8, 0, 250)
-		list.BackgroundTransparency = 1
-		list.BorderSizePixel = 0
-		list.ScrollBarThickness = 4
-		list.AutomaticCanvasSize = environment.Enum.AutomaticSize.Y
-		list.Parent = friendContent
-		local layout = context.environment.Instance.new("UIListLayout")
-		layout.Padding = environment.UDim.new(0, 6)
-		layout.SortOrder = environment.Enum.SortOrder.LayoutOrder
-		layout.Parent = list
-		local rows = {}
-		local function refreshFriends()
-			for _, row in ipairs(rows) do pcall(function() row:Destroy() end) end
-			rows = {}
-			local plist = context.players:GetPlayers()
-			table.sort(plist, function(a, b) return tostring(a.DisplayName) < tostring(b.DisplayName) end)
-			for _, player in ipairs(plist) do
-				if player ~= context.player then
-					local row = context.environment.Instance.new("Frame")
-					row.Size = environment.UDim2.new(1, 0, 0, 40)
-					row.BackgroundTransparency = 0.9
-					row.BorderSizePixel = 0
-					row.Parent = list
-					local corner = context.environment.Instance.new("UICorner")
-					corner.CornerRadius = environment.UDim.new(0, 8)
-					corner.Parent = row
-					local stroke = context.environment.Instance.new("UIStroke")
-					stroke.Thickness = 1; stroke.Transparency = 0.85
-					stroke.Parent = row
-					local avatar = context.environment.Instance.new("ImageLabel")
-					avatar.Size = environment.UDim2.fromOffset(30, 30)
-					avatar.Position = environment.UDim2.fromOffset(8, 5)
-					avatar.BackgroundTransparency = 1
-					avatar.Image = ("rbxthumb://type=AvatarHeadShot&id=%d&w=150&h=150"):format(player.UserId)
-					avatar.Parent = row
-					local acorner = context.environment.Instance.new("UICorner")
-					acorner.CornerRadius = environment.UDim.new(1, 0)
-					acorner.Parent = avatar
-					local name = context.environment.Instance.new("TextLabel")
-					name.Size = environment.UDim2.new(1, -120, 0, 16)
-					name.Position = environment.UDim2.fromOffset(44, 4)
-					name.BackgroundTransparency = 1
-					name.Text = player.DisplayName .. "  @" .. player.Name
-					name.TextXAlignment = environment.Enum.TextXAlignment.Left
-					name.TextSize = 13
-					name.TextColor3 = environment.Color3.new(1, 1, 1)
-					name.Font = environment.Enum.Font.GothamSemibold
-					name.Parent = row
-					local btn = context.environment.Instance.new("TextButton")
-					btn.Size = environment.UDim2.fromOffset(32, 30)
-					btn.Position = environment.UDim2.new(1, -8, 0, 5)
-					btn.BackgroundTransparency = 0.45
-					btn.Text = friends[player.UserId] == true and "✓" or "+"
-					btn.TextSize = 17
-					btn.Font = environment.Enum.Font.GothamBold
-					btn.TextColor3 = friends[player.UserId] == true and environment.Color3.fromRGB(90, 255, 140) or environment.Color3.new(1, 1, 1)
-					btn.Parent = row
-					local acorner2 = context.environment.Instance.new("UICorner")
-					acorner2.CornerRadius = environment.UDim.new(0, 6)
-					acorner2.Parent = btn
-					btn.MouseButton1Click:Connect(function()
-						local now = not (friends[player.UserId] == true)
-						if now then friends[player.UserId] = true else friends[player.UserId] = nil end
-						btn.Text = now and "✓" or "+"
-						btn.TextColor3 = now and environment.Color3.fromRGB(90, 255, 140) or environment.Color3.new(1, 1, 1)
-					end)
-					table.insert(rows, row)
-				end
-			end
-		end
-		refreshFriends()
-		context.environment.task.spawn(function()
-			while context.isAlive() do
-				environment.task.wait(2)
-				pcall(refreshFriends)
-			end
-		end)
-	end
+	section:Header("Friends")
+	section:Note({Text = "Tap a player to toggle friend protection: aimbot and auto knife throw skip friends"})
+	section:PlayerList({ExcludeLocal = true, Momentary = true, ActionIcon = "heart", Refresh = 0.4,
+		OnSelect = function(player)
+			if not player then return end
+			local id = tostring(player.UserId)
+			if friends[id] then friends[id] = nil else friends[id] = true end
+		end,
+		SubText = function(player)
+			return friends[tostring(player.UserId)] and tr("Friend") or tr("Not a friend")
+		end,
+		SubColor = function(player)
+			return friends[tostring(player.UserId)] and environment.Color3.fromRGB(96, 220, 130)
+				or environment.Color3.fromRGB(142, 148, 162)
+		end,
+		SortKey = function(player)
+			return friends[tostring(player.UserId)] and 0 or 1
+		end,
+	})
 
 	context.environment.task.spawn(function()
 		while context.isAlive() do
@@ -28389,10 +28182,15 @@ function MurderFeature.ready(state, roles)
 	return MurderFeature.findKnife(state, character) ~= nil
 end
 
+function MurderFeature.isFriend(state, player)
+	local globals = state.context.environment.getgenv()
+	local isFriend = rawget(globals, "__staticIsFriend")
+	return type(isFriend) == "function" and player ~= nil and isFriend(player) or false
+end
+
 function MurderFeature.validTarget(state, player, roles)
-	local context, globals = state.context, state.context.environment.getgenv()
+	local context = state.context
 	if player == context.player then return false end
-	if globals.__staticIsFriend and globals.__staticIsFriend(player) then return false end
 
 	local duel = context.environment.getgenv().__staticDuel
 	if duel and duel.on then
@@ -28459,6 +28257,7 @@ function MurderFeature.killPass(state)
 	local armed, others = {}, {}
 	for _, player in context.players:GetPlayers() do
 		if not MurderFeature.validTarget(state, player, roles) then continue end
+		if MurderFeature.isFriend(state, player) then continue end
 		local root = player.Character:FindFirstChild("HumanoidRootPart")
 		if not root then continue end
 		local targets = MurderFeature.hasGun(player) and armed or others
@@ -28479,6 +28278,7 @@ function MurderFeature.step(state)
 	local targets = {}
 	for _, player in context.players:GetPlayers() do
 		if not MurderFeature.validTarget(state, player, roles) then continue end
+		if MurderFeature.isFriend(state, player) then continue end
 		local root = player.Character:FindFirstChild("HumanoidRootPart")
 		if not root then continue end
 		local role = roles[player.Name]
@@ -28533,6 +28333,7 @@ function KnifeAim.candidates(state, origin, roles)
 
 	for _, player in context.players:GetPlayers() do
 		if not MurderFeature.validTarget(state.murder, player, roles) then continue end
+		if MurderFeature.isFriend(state.murder, player) then continue end
 		local character = player.Character
 		local root = character and character:FindFirstChild("HumanoidRootPart")
 		if not root then continue end
@@ -47583,14 +47384,10 @@ function StaticApplication.Mobile.action(state, key)
 	if key == "fly" then settings.fly.on = not settings.fly.on; return end
 	if key == "bhop" then settings.bhop = not settings.bhop; return end
 	if key == "autogun" then
-		local s = settings.sheriff
-		if type(s) ~= "table" then s = {}; settings.sheriff = s end
-		s.autoGun = not s.autoGun
-		settings.mobile.autogun = s.autoGun == true
-		StaticApplication.Mobile.refresh(state)
+		if type(settings.sheriff) == "table" then settings.sheriff.autoGun = not settings.sheriff.autoGun end
 		return
 	end
-	local toggles = {killall = "KillAll", invis = "Invis", noclip = "Noclip", speed = "Speed", sglitch = "SGlitch"}
+	local toggles = {killall = "KillAll", invis = "Invis", noclip = "Noclip", speed = "Speed", sglitch = "SGlitch", god = "God"}
 	local name = toggles[key]
 	if name then
 		local get, set = globals["__staticGet" .. name], globals["__staticSet" .. name]
@@ -47655,7 +47452,8 @@ StaticApplication.Mobile.buttons = {
 	{key = "noclip", text = "No Clip Button", label = "NOCLIP", x = 1, y = 1},
 	{key = "speed", text = "Speed Button", label = "SPEED", x = 2, y = 0},
 	{key = "sglitch", text = "Speed Glitch Button", label = "GLITCH", x = 2, y = 1},
-	{key = "autogun", text = "Кнопка авто подбор пистолета", label = "PISTOL", x = 2, y = 2},
+	{key = "god", text = "GodMode Button", label = "GOD", x = 0, y = 2},
+	{key = "autogun", text = "Auto Gun Button", label = "GUN", x = 1, y = 2},
 }
 
 function StaticApplication.Mobile.refresh(state)
@@ -47692,7 +47490,7 @@ function StaticApplication.Mobile.button(state, item)
 	local inputService = context.inputService
 	local button = context.create("TextButton", {Name = item.key, Text = item.label, AutoButtonColor = false,
 		Font = environment.Enum.Font.GothamBold, TextSize = 10, BorderSizePixel = 0, Active = true}, state.gui)
-	context.corner(button, 32)
+	state.corners[item.key] = context.corner(button, 32)
 	local current, origin, start, moved, doubleTap, lastTime, lastPosition
 	context.connect(button.InputBegan, function(input)
 		local kind = input.UserInputType
@@ -47740,8 +47538,9 @@ end
 function StaticApplication.Mobile.paint(state)
 	local context, environment = state.context, state.context.environment
 	local globals, settings = environment.getgenv(), context.configuration
-	local active = {fly = settings.fly.on == true, bhop = settings.bhop == true}
-	for key, name in {killall = "KillAll", invis = "Invis", noclip = "Noclip", speed = "Speed", sglitch = "SGlitch"} do
+	local active = {fly = settings.fly.on == true, bhop = settings.bhop == true,
+		autogun = type(settings.sheriff) == "table" and settings.sheriff.autoGun == true}
+	for key, name in {killall = "KillAll", invis = "Invis", noclip = "Noclip", speed = "Speed", sglitch = "SGlitch", god = "God"} do
 		local get = globals["__staticGet" .. name]
 		if type(get) ~= "function" then continue end
 		local ok, value = pcall(get)
@@ -47761,6 +47560,20 @@ function StaticApplication.Mobile.paint(state)
 		button.BackgroundColor3 = selected and environment.Color3.fromRGB(66, 135, 245)
 			or settings.uis.style == "Glass" and environment.Color3.fromRGB(200, 205, 220) or environment.Color3.fromRGB(28, 28, 32)
 		button.TextTransparency = unavailable and 0.55 or 0
+	end
+
+	-- The corner-radius slider from Settings -> UI restyles these buttons too:
+	-- the same multiplier that rounds the menu and sections rounds every button.
+	local nova = context.nova
+	local mult = nova and nova.U and tonumber(nova.U.radiusMult) or 1
+	for _, item in StaticApplication.Mobile.buttons do
+		local corner = state.corners[item.key]
+		if corner and corner.Parent then
+			local radius = environment.math.floor(32 * mult + 0.5)
+			if corner.CornerRadius.Offset ~= radius then
+				corner.CornerRadius = environment.UDim.new(0, radius)
+			end
+		end
 	end
 end
 
@@ -47820,7 +47633,7 @@ function StaticApplication.Mobile.install(context)
 	settings.uis.size = type(settings.uis.size) == "table" and settings.uis.size or {}
 	settings.uis.lock = type(settings.uis.lock) == "table" and settings.uis.lock or {}
 	if settings.uis.style ~= "Static" and settings.uis.style ~= "Glass" and settings.uis.style ~= "Compact" then settings.uis.style = "Static" end
-	local state = {context = context, buttons = {}, painted = {}}
+	local state = {context = context, buttons = {}, painted = {}, corners = {}}
 	local environment, section = context.environment, context.section
 	state.gui = context.create("ScreenGui", {Name = "StaticMobileBtns", ResetOnSpawn = false, IgnoreGuiInset = true,
 		ZIndexBehavior = environment.Enum.ZIndexBehavior.Sibling, DisplayOrder = 9999}, context.parent)
@@ -47834,33 +47647,16 @@ function StaticApplication.Mobile.install(context)
 		StaticApplication.Mobile.refresh(state)
 	end})
 	for _, item in StaticApplication.Mobile.buttons do
-		if item.key == "autogun" then
-			section:Toggle({Text = item.text, Default = (settings.sheriff and settings.sheriff.autoGun) == true,
-				Callback = function(value)
-					local s = settings.sheriff
-					if type(s) ~= "table" then s = {}; settings.sheriff = s end
-					s.autoGun = value
-					settings.mobile.autogun = value
+		section:Toggle({Text = item.text, Default = settings.mobile[item.key] == true, Callback = function(value)
+			settings.mobile[item.key] = value
+			StaticApplication.Mobile.refresh(state)
+		end, Settings = function()
+			section:Slider({Text = item.text .. " Size", Min = 50, Max = 200, Default = tonumber(settings.uis.size[item.key]) or 100,
+				Decimals = 0, Suffix = "%", Callback = function(value)
+					settings.uis.size[item.key] = value
 					StaticApplication.Mobile.refresh(state)
-				end, Settings = function()
-					section:Slider({Text = item.text .. " Size", Min = 50, Max = 200, Default = tonumber(settings.uis.size[item.key]) or 100,
-						Decimals = 0, Suffix = "%", Callback = function(value)
-							settings.uis.size[item.key] = value
-							StaticApplication.Mobile.refresh(state)
-						end})
 				end})
-		else
-			section:Toggle({Text = item.text, Default = settings.mobile[item.key] == true, Callback = function(value)
-				settings.mobile[item.key] = value
-				StaticApplication.Mobile.refresh(state)
-			end, Settings = function()
-				section:Slider({Text = item.text .. " Size", Min = 50, Max = 200, Default = tonumber(settings.uis.size[item.key]) or 100,
-					Decimals = 0, Suffix = "%", Callback = function(value)
-						settings.uis.size[item.key] = value
-						StaticApplication.Mobile.refresh(state)
-					end})
-			end})
-		end
+		end})
 	end
 	section:Button({Text = "Reset UIS Position", Callback = function() table.clear(settings.mobile.pos); StaticApplication.Mobile.refresh(state) end})
 	section:Header("Lock")
@@ -52961,26 +52757,8 @@ function StaticApplication.installAppearance(context)
 		Default = window.UserScale, Suffix = "x", Callback = function() end, Released = function(value) window:SetScale(value) end})
 	refs.autofit = add(interface, "Toggle", {Text = "Fit to screen", Default = window.AutoFit,
 		Callback = function(value) window:SetAutoFit(value) end})
-	local g = context.environment.getgenv()
-	local function shootMurder()
-		if type(g.__staticShotMurder) == "function" then pcall(g.__staticShotMurder) end
-	end
-	local function flingSheriff()
-		local players = context.environment.game:GetService("Players")
-		local sheriff = nil
-		for _, p in ipairs(players:GetPlayers()) do
-			local char, bp = p.Character, p:FindFirstChildOfClass("Backpack")
-			if (char and char:FindFirstChild("Gun")) or (bp and bp:FindFirstChild("Gun")) then
-				sheriff = p
-				break
-			end
-		end
-		if sheriff and type(g.__staticFlingPersist) == "function" then
-			pcall(g.__staticFlingPersist, sheriff, {time = 6})
-		end
-	end
-	add(interface, "Button", {Text = "Стрельба по мардеру", Callback = shootMurder})
-	add(interface, "Button", {Text = "Флинг шерифа", Callback = flingSheriff})
+	refs.radius = add(interface, "Slider", {Text = "Corner radius", Min = 0, Max = 2, Decimals = 2,
+		Default = tonumber(window.State.get("radius", 1)) or 1, Suffix = "x", Callback = function(value) window:SetCornerRadius(value) end})
 	refs.textScale = add(interface, "Slider", {Text = "Text size", Min = 0.85, Max = 1.25, Decimals = 2,
 		Default = tonumber(window.State.get("textScale", 1)) or 1, Suffix = "x", Callback = function(value) window:SetTextScale(value) end})
 	local fonts = {}
@@ -53218,7 +52996,16 @@ function StaticApplication.create(environment, parent, versions)
 	local window, tabs = StaticWindow.create(environment, nova, layout, parent)
 	environment.getgenv().__staticMM2Nova = window
 	for _, group in ipairs(window.Groups) do translation.bind(group.Label, group.Key) end
-	for name, tab in pairs(tabs) do translation.bind(tab.Label, name) end
+	for name, tab in pairs(tabs) do
+		translation.bind(tab.Label, name)
+		if type(tab.SubButtons) == "table" then
+			for key, item in pairs(tab.SubButtons) do
+				if item.Label and item.Def then
+					environment.pcall(function() translation.bind(item.Label, item.Def.label or key) end)
+				end
+			end
+		end
+	end
 	local globals = environment.getgenv()
 	globals.__staticBinds = globals.__staticBinds or {}
 	globals.__staticBakedCfg = Configuration.baked(http)
@@ -53253,7 +53040,8 @@ function StaticApplication.create(environment, parent, versions)
 	local stopCameraNoclip = Movement.installCameraNoclip({environment = environment, configuration = settings,
 		defaults = defaults, section = main, player = players.LocalPlayer})
 	Movement.install({environment = environment, configuration = settings, defaults = defaults,
-		section = main, connect = connect, inputService = inputService, player = players.LocalPlayer})
+		section = main, connect = connect, inputService = inputService, runService = runService,
+		player = players.LocalPlayer})
 	local stopAntiCoin = Movement.installAntiCoin({environment = environment, section = main, player = players.LocalPlayer,
 		workspace = workspace, storage = game:GetService("ReplicatedStorage"), window = window, translation = translation,
 		connect = connect, isAlive = function() return not window.Destroyed end})
@@ -53288,7 +53076,7 @@ function StaticApplication.create(environment, parent, versions)
 	general:Sub("UI")
 	StaticApplication.installMenu({environment = environment, configuration = settings,
 		section = general, translation = translation, window = window, hub = hub})
-	pcall(StaticApplication.installAppearance, {window = window, nova = nova, hub = hub, translation = translation, environment = environment})
+	pcall(StaticApplication.installAppearance, {window = window, nova = nova, hub = hub, translation = translation})
 	StaticApplication.installGeneral({environment = environment, configuration = settings, defaults = defaults,
 		section = general, connect = connect, player = players.LocalPlayer, runService = runService,
 		workspace = workspace, window = window})
@@ -53431,7 +53219,8 @@ function StaticApplication.create(environment, parent, versions)
 		connect = connect, round = nova.U.corner, coreGui = game:GetService("CoreGui"),
 		player = players.LocalPlayer, players = players, roles = roles, runService = runService,
 	})
-	local murder = MurderFeature.install({environment = environment, section = combat, roles = roles, players = players,
+	local murder = MurderFeature.install({environment = environment, section = combat, configuration = settings,
+		translation = translation, roles = roles, players = players,
 		player = players.LocalPlayer, collection = game:GetService("CollectionService"),
 		isAlive = function() return not window.Destroyed end})
 	aimContext.section, aimContext.coreGui, aimContext.stats = combat, game:GetService("CoreGui"), game:GetService("Stats")
@@ -53455,8 +53244,8 @@ function StaticApplication.create(environment, parent, versions)
 	local mobile = StaticTab.create(environment, hub, "Mobile", "smartphone", context)
 	local _, stopMobile = StaticApplication.Mobile.install({environment = environment, configuration = settings, section = mobile,
 		workspace = workspace, players = players, player = players.LocalPlayer, roles = roles, inputService = inputService,
-		runService = runService, parent = parent or nova.U.hostGui(), create = create, corner = nova.U.corner, connect = connect,
-		applyHooks = context.applyHooks, isAlive = function() return not window.Destroyed end})
+		runService = runService, nova = nova, parent = parent or nova.U.hostGui(), create = create, corner = nova.U.corner,
+		connect = connect, applyHooks = context.applyHooks, isAlive = function() return not window.Destroyed end})
 	local teleportTab = StaticTab.create(environment, hub, "Teleport", "location-pin-map", context)
 	TeleportFeature.install({environment = environment, workspace = workspace, players = players, player = players.LocalPlayer,
 		roles = roles, window = window, translation = translation, section = teleportTab})
@@ -53484,7 +53273,6 @@ function StaticApplication.create(environment, parent, versions)
 		hub.dead = true
 		pcall(context.stopTrolly)
 		pcall(aim.stop)
-		pcall(AimShootButton.destroy, rawget(environment.getgenv(), "__staticShootBtn"))
 		pcall(stopFarm)
 		pcall(context.stopFarmWebhook)
 		pcall(stopRoleFarm)
